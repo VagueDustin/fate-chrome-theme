@@ -16,21 +16,28 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
 
       # The manifest version has to match the tag, or the Web Store rejects a
-      # re-upload as "version already exists".
+      # re-upload as "version already exists". On a manual dispatch there is no
+      # tag, so the build just falls back to the default version.
       - name: Build
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node build.mjs --version="$VERSION"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            node build.mjs --version="${GITHUB_REF_NAME#v}"
+          else
+            node build.mjs
+          fi
           node pack.mjs
+          ls -la dist/*.zip
 
+      # Dispatch runs stop here and serve as a build check.
       - name: Release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
