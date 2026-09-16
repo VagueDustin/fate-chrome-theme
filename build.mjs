@@ -115,10 +115,10 @@ function parseRgba(str) {
 function renderStrips(theme, prim) {
   const t = theme.tokens;
   const frame = hexToRgb(t.surface.sunken);
-  const toolbar = hexToRgb(t.surface.raised);
+  const toolbar = hexToRgb(t.surface.overlay); // must match the `toolbar` colour
   const base = hexToRgb(t.surface.base);
   const black = [0, 0, 0];
-  const gold300 = hexToRgb(prim.gold['300']);
+  const gold400 = hexToRgb(prim.gold['400']);
 
   const frameStrip = (dim) =>
     verticalStrip(STRIP_W, STRIP_H, [
@@ -128,16 +128,25 @@ function renderStrips(theme, prim) {
 
   const toolbarStrip = verticalStrip(STRIP_W, STRIP_H, [
     [0, toolbar],
-    [0.55, mix(toolbar, base, 0.45)],
-    [1, mix(toolbar, base, 0.6)],
+    [0.55, mix(toolbar, base, 0.4)],
+    [1, mix(toolbar, base, 0.55)],
   ]);
-  // `inset 0 1px 0 rgba(255,233,168,0.08)` from the gilded panel shadow — the
-  // stroke that makes a dark surface read as gilded rather than merely dark.
-  for (let x = 0; x < STRIP_W; x++) toolbarStrip.blend(x, 0, gold300, 0.08);
+  // A gilded top edge, 2px. Chrome paints this image across the toolbar and the
+  // selected tab that sits continuous with it, so where it lands on the tab it
+  // gives the gold edge the colour keys cannot; where it lands on the toolbar
+  // it reads as the house hairline. Either way it is the only route to a gold
+  // stroke, since no tab outline key exists.
+  for (let x = 0; x < STRIP_W; x++) {
+    toolbarStrip.blend(x, 0, gold400, 0.85);
+    toolbarStrip.blend(x, 1, gold400, 0.45);
+  }
 
+  // Inactive tabs, flat and equal to the frame so they recede into it. Kept
+  // identical to the `background_tab` colour, so it makes no difference which
+  // of the two Chrome decides to honour.
   const tabStrip = verticalStrip(STRIP_W, STRIP_H, [
-    [0, mix(frame, toolbar, 0.16)],
-    [1, mix(frame, toolbar, 0.42)],
+    [0, frame],
+    [1, frame],
   ]);
 
   return {
@@ -168,20 +177,38 @@ function buildColors(theme) {
     frame_incognito: toChrome(mix(frame, black, 0.55)),
     frame_incognito_inactive: toChrome(mix(frame, black, 0.68)),
 
-    // The toolbar colour doubles as the active tab fill, so it takes the
-    // raised surface and the active tab reads as lifted out of the frame.
-    toolbar: toChrome(toolbar),
-    tab_text: toChrome(hexToRgb(t.text.primary)),
+    // Telling the selected tab apart.
+    //
+    // Chrome has no colour key for the active tab: it is painted with
+    // COLOR_TOOLBAR, so it cannot be styled separately from the toolbar, and
+    // there is no tab stroke or outline key at all. The separation has to come
+    // from the three keys that do exist.
+    //
+    // 1. The active tab takes `surface.overlay` — two steps up from the frame,
+    //    not one, so the lift is legible against near-black navy.
+    toolbar: toChrome(hexToRgb(t.surface.overlay)),
+    // 2. Inactive tabs are pinned to the frame colour so they recede into it
+    //    and only the selected tab reads as a surface.
+    background_tab: toChrome(frame),
+    background_tab_inactive: toChrome(mix(frame, black, 0.32)),
+    background_tab_incognito: toChrome(mix(frame, black, 0.55)),
+    background_tab_incognito_inactive: toChrome(mix(frame, black, 0.68)),
+    // 3. The selected tab's label is gold. Gold normally means interactive or
+    //    brand and never status (AGENTS.md §2.3) — selection is a navigation
+    //    state rather than a status, and it is the only cue Chrome leaves that
+    //    can carry the accent onto the tab itself.
+    tab_text: toChrome(hexToRgb(t.accent.default)),
     tab_background_text: toChrome(hexToRgb(t.text.muted)),
     tab_background_text_inactive: toChrome(hexToRgb(t.text.faint)),
-    bookmark_text: toChrome(hexToRgb(t.text.muted)),
 
-    // Gold means interactive or brand, nothing else (AGENTS.md §2.3) — so it
-    // lands on the toolbar controls and new-tab links, never on body text.
+    bookmark_text: toChrome(hexToRgb(t.text.muted)),
+    toolbar_text: toChrome(hexToRgb(t.text.primary)),
     toolbar_button_icon: toChrome(hexToRgb(t.accent.default)),
     button_background: [...toChrome(accentSubtle.rgb), accentSubtle.a],
 
-    omnibox_background: toChrome(hexToRgb(t.surface.overlay)),
+    // Lifted one further step, so the omnibox still reads as inset now that
+    // the toolbar itself is lighter.
+    omnibox_background: toChrome(hexToRgb(t.surface.highest)),
     omnibox_text: toChrome(hexToRgb(t.text.primary)),
 
     // The wallpaper's own edges average #020613, so this fill meets them

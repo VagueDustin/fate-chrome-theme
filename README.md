@@ -7,30 +7,27 @@ every surface of the browser.
 
 ## Install
 
-**Chrome Web Store** — listing in review.
+[![Download the theme](https://img.shields.io/badge/Download%20the%20theme-%E2%86%92-D4AF37?style=for-the-badge&labelColor=070B1A&color=D4AF37&logo=googlechrome&logoColor=D4AF37)](https://github.com/VagueDustin/fate-chrome-theme/releases/latest/download/fate-chrome-theme.zip)
 
-**From a release**
+Then three steps:
 
-1. Download `fate-chrome-theme.zip` from [the latest release](https://github.com/VagueDustin/fate-chrome-theme/releases/latest)
-2. Unzip it
-3. Open `chrome://extensions` and turn on **Developer mode**
-4. Click **Load unpacked** and select the unzipped folder
+1. Unzip `fate-chrome-theme.zip`
+2. Open `chrome://extensions` and turn on **Developer mode**
+3. Click **Load unpacked** and select the unzipped folder
 
-Chrome only allows one theme at a time. To remove it, go to **Settings → Appearance → Reset to
-default**.
+Chrome holds one theme at a time. To remove it, go to **Settings → Appearance → Reset to default**.
 
-Developer mode is needed because Chrome refuses to install a packaged theme from anywhere but the
-Web Store. Nothing about the theme requires it.
+True one-click install is coming with the Chrome Web Store listing, which is in review — Chrome
+refuses to install a packaged theme from anywhere else, so those three steps are unavoidable until
+it lands.
 
 ## What it changes
 
 - Window frame, tab strip and toolbar in deep navy
 - Omnibox and bookmarks bar to match
 - Toolbar controls — back, forward, reload, menu — in metallic gold
+- The tab you are on lifted out of the frame, with a gold label and a gilded top edge
 - A painted night sky on the new tab page
-
-Gold is kept for the controls you actually press. Everything else stays quiet, so the browser reads
-as still until you reach for it.
 
 <img src="docs/screenshot-newtab.jpg" alt="The new tab page: a navy night sky with constellations, nebula and a gilded crescent" width="100%">
 
@@ -48,8 +45,9 @@ collected of any kind. It is a theme and nothing else.
 ## Design
 
 Navy `#070B1A` and gold `#D4AF37`, the palette shared across every VagueDustin Enterprises product.
-Colour comes from the house design tokens rather than being chosen per surface, so gold means
-interactive or brand and never anything else.
+
+Gold is kept for what you can act on — the toolbar controls, links, and the tab you are on. Nothing
+decorative uses it, which is what lets it read at a glance against near-black navy.
 
 Navy and gold, inscribed rather than printed, lit from somewhere just off the page.
 
