@@ -43,15 +43,15 @@ Loading unpacked is the only install route that does not involve the Chrome Web 
 Replacing either file and rerunning `node build.mjs` is the whole update path. Both PNG and baseline
 JPEG sources are accepted.
 
-**The new tab background is never resampled and never lossily re-encoded.** Chrome places
-`theme_ntp_background` at its natural size and never scales it, so the source file *is* the final
-pixel grid — the build only changes its container. A JPEG source ships byte-for-byte; a PNG source
-is re-encoded losslessly and whichever encoding is smaller wins. At 1920×1080 the art covers a 1080p
-new tab outright.
+**Theme images must be PNG.** Chrome's docs are explicit that a non-PNG theme image
+["will not render properly"](https://developer.chrome.com/docs/extensions/develop/ui/themes)
+(crbug.com/1200459), so a JPEG source is converted rather than passed through. Third-party guides
+claiming JPEG works are wrong; don't follow them.
 
-Because Chrome does not scale, a source much past ~1920×1080 gets **cropped rather than fitted** —
-the outer artwork simply falls outside the viewport. The build prints a warning above 2560×1440
-rather than silently resampling.
+**The new tab background is never resampled by default and never lossily re-encoded.** Chrome
+places `theme_ntp_background` at its natural size, so the source file *is* the final pixel grid —
+the build only changes its container, re-encoding losslessly and keeping whichever encoding is
+smaller. At 1920×1080 the art covers a 1080p new tab outright.
 
 The art's edges average `#020613`, within a rounding error of the theme's `surface.base` `#020617`.
 That is why no feathering is needed: on a screen wider or taller than the image, Chrome's
@@ -125,7 +125,11 @@ Other flags:
 ```bash
 node build.mjs --theme=gold-navy     # any theme in the brand package
 node build.mjs --version=1.2.0
+node build.mjs --ntp=3440x1440       # retarget the new tab art at a screen size
 ```
+
+`--ntp` opts into resampling (scale-to-cover, centre-crop) and warns when it is upscaling. It is
+never automatic — see *Sizing the new tab background*.
 
 ---
 
@@ -204,11 +208,41 @@ These are Chrome's, not the theme's:
 
 - Themes can only colour the browser frame, tab strip, toolbar, omnibox and new tab page. Chrome's
   menus, settings pages and dialogs follow the OS light/dark setting and cannot be themed.
-- `theme_ntp_background` is placed at its natural size, never scaled or repeated. That is a Chrome
-  limitation, not a choice — it is why the source has to be authored at roughly viewport size. On
-  larger screens the surrounding fill is the same colour as the art's own edges, so there is no
-  visible seam.
+- `theme_ntp_background` is placed at its natural size and **cannot be scaled**. See below.
 - Chrome has no theme hook for the bookmark bar background separately from the toolbar.
+
+---
+
+## Sizing the new tab background
+
+There is **no `cover`, `contain` or stretch** for a theme background. The entire surface area is two
+manifest properties — alignment (`center`, `left`, `right`, `top`, `bottom`, plus corner pairs) and
+repeat (`repeat`, `no-repeat`, `repeat-x`, `repeat-y`). The image is placed at natural size and then
+cropped or letterboxed. "Scales to any screen" is not achievable the way it would be in CSS.
+
+That leaves three honest strategies:
+
+| | How it behaves | Cost |
+| --- | --- | --- |
+| **Author at your largest target** | Fills that screen exactly | Smaller screens crop from the centre, so edge-anchored ornament is lost |
+| **Safe-zone the composition** | Survives every screen size | The frame can no longer be full-bleed — ornament has to sit inside a central ~1280×800 region |
+| **Tileable band + `repeat-x`** | Genuinely fills any width | Cannot contain a single moon or corner frame; a tile repeats across the screen |
+
+This theme takes the first. The art is 1920×1080, which fills a 1080p new tab outright; on an
+ultrawide it centres with fill around it. That fill is invisible rather than a seam, because
+`ntp_background` is `#020617` and the art's own edges average `#020613`.
+
+To fill a wider screen, re-export the source at that size — `--ntp` can retarget an existing master,
+but it upscales, which softens the art. Get the exact viewport from DevTools on any normal page:
+
+```javascript
+window.innerWidth + " × " + window.innerHeight
+```
+
+**Alignment is `top`, not `center`, deliberately.** On a screen taller than the art, `top` keeps the
+image flush under the toolbar rather than floating it in a band of fill. On a screen shorter than
+the art, it crops from the bottom, which keeps the crescent — the signature element, sitting
+high-left — visible either way.
 
 ---
 

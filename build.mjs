@@ -244,28 +244,43 @@ for (const [name, canvas] of Object.entries(renderStrips(theme, prim))) {
   bytes += png.length;
 }
 
-// New tab page — the source art at its native size, never resampled, and never
-// re-encoded lossily. Format follows the source: a JPEG ships byte-for-byte, a
-// PNG is re-encoded losslessly and whichever encoding is smaller wins.
+// New tab page.
+//
+// Theme images must be PNG — Chrome's own docs say a non-PNG "will not render
+// properly" (crbug.com/1200459) — so a JPEG source is converted rather than
+// passed through. Otherwise the art is left exactly as authored: native size,
+// no resampling, lossless re-encode, and whichever encoding is smaller wins.
+//
+// `--ntp=WxH` opts into resampling, for retargeting one high-resolution master
+// at a specific screen. It is never automatic: Chrome crops rather than fits,
+// so the right size is an art decision, not something the build should guess.
 const wallpaperArt = loadArt('wallpaper');
-const wallpaper = wallpaperArt.image;
-
-let ntpBytes;
-let ntpExt;
+let wallpaper = wallpaperArt.image;
 let ntpNote;
-if (wallpaperArt.isJpeg) {
-  ntpBytes = wallpaperArt.bytes;
-  ntpExt = 'jpg';
-  ntpNote = 'shipped verbatim';
-} else {
-  const reencoded = encodePng(wallpaper.w, wallpaper.h, wallpaper.rgb);
-  const keepOriginal = wallpaperArt.bytes.length <= reencoded.length;
-  ntpBytes = keepOriginal ? wallpaperArt.bytes : reencoded;
-  ntpExt = 'png';
-  ntpNote = keepOriginal ? 'shipped verbatim' : 'losslessly re-encoded, smaller';
+
+const ntpOverride = arg('ntp', null);
+if (ntpOverride) {
+  const m = /^(\d+)x(\d+)$/.exec(ntpOverride);
+  if (!m) throw new Error(`--ntp must look like 3440x1440, got "${ntpOverride}"`);
+  const [tw, th] = [+m[1], +m[2]];
+  const src = wallpaperArt.image;
+  const fitted = coverResize(wallpaper, tw, th);
+  wallpaper = { w: tw, h: th, rgb: fitted.toBytes() };
+  const upscaling = tw > src.w || th > src.h;
+  ntpNote =
+    `${src.w}x${src.h} -> ${tw}x${th}, resampled` + (upscaling ? ' (UPSCALED — softer)' : '');
 }
-writeFileSync(join(imgDir, `theme_ntp_background.${ntpExt}`), ntpBytes);
-images.theme_ntp_background = `images/theme_ntp_background.${ntpExt}`;
+
+const reencoded = encodePng(wallpaper.w, wallpaper.h, wallpaper.rgb);
+const keepOriginal = !ntpOverride && !wallpaperArt.isJpeg && wallpaperArt.bytes.length <= reencoded.length;
+const ntpBytes = keepOriginal ? wallpaperArt.bytes : reencoded;
+if (!ntpNote) {
+  const dims = `${wallpaper.w}x${wallpaper.h} native`;
+  if (wallpaperArt.isJpeg) ntpNote = `${dims}, JPEG source converted to PNG (Chrome requires PNG)`;
+  else ntpNote = `${dims}, ${keepOriginal ? 'shipped verbatim' : 'losslessly re-encoded, smaller'}`;
+}
+writeFileSync(join(imgDir, 'theme_ntp_background.png'), ntpBytes);
+images.theme_ntp_background = 'images/theme_ntp_background.png';
 bytes += ntpBytes.length;
 
 // Icons, downsampled from the source mark. PNG here — a 128px crest needs
@@ -294,6 +309,11 @@ const manifest = {
     images,
     colors: buildColors(theme),
     properties: {
+      // `top`, not `center`, on purpose. Chrome cannot scale this image, so on
+      // a screen taller than the art `top` keeps it flush under the toolbar
+      // instead of floating it in a band of fill; and on a screen shorter than
+      // the art it crops from the bottom, which keeps the crescent — the
+      // signature element, sitting high-left — visible either way.
       ntp_background_alignment: 'top',
       ntp_background_repeat: 'no-repeat',
       ntp_logo_alternate: 1, // white Google logo — every house surface is dark
@@ -319,11 +339,10 @@ console.log(
   `  dist/fate-chrome-theme  ${Object.keys(images).length} images, ` +
     `${ICON_SIZES.length} icons  ${(bytes / 1024 / 1024).toFixed(2)} MB`,
 );
-console.log(
-  `  new tab background: ${wallpaper.w}x${wallpaper.h} native, ${ntpNote}` +
-    `  (${(ntpBytes.length / 1024).toFixed(0)} KB)`,
-);
-if (wallpaper.w > NTP_ADVISORY.w || wallpaper.h > NTP_ADVISORY.h) {
+console.log(`  new tab background: ${ntpNote}  (${(ntpBytes.length / 1024).toFixed(0)} KB)`);
+// Only advise when the size was inherited from the source. If --ntp named it,
+// the choice was deliberate and does not need explaining back.
+if (!ntpOverride && (wallpaper.w > NTP_ADVISORY.w || wallpaper.h > NTP_ADVISORY.h)) {
   console.log(
     `\n  ! ${wallpaper.w}x${wallpaper.h} is larger than most new tab viewports. Chrome places this\n` +
       '    image at natural size and never scales it, so the edges of the art will be cropped\n' +
