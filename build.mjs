@@ -192,9 +192,12 @@ function buildColors(theme) {
   };
 }
 
+// The Web Store rejects an upload whose manifest description exceeds 132
+// characters, and it only tells you at upload time.
+const DESCRIPTION_LIMIT = 132;
 const DESCRIPTION =
-  'Deep navy and metallic gold across every Chrome surface — constellations, ' +
-  'nebula and a gilded crescent. The thread is already in motion.';
+  'Deep navy and metallic gold across every Chrome surface. Constellations, ' +
+  'nebula, a gilded crescent — the thread is in motion.';
 
 // ------------------------------------------------------------------ main ----
 
@@ -206,6 +209,14 @@ const version = arg('version', '1.0.0');
 const theme = tokens.themes[themeId];
 if (!theme) {
   throw new Error(`Unknown theme "${themeId}". Available: ${Object.keys(tokens.themes).join(', ')}`);
+}
+
+// Fail here rather than at the upload dialog.
+if (DESCRIPTION.length > DESCRIPTION_LIMIT) {
+  throw new Error(
+    `manifest description is ${DESCRIPTION.length} characters; the Chrome Web Store ` +
+      `limit is ${DESCRIPTION_LIMIT}. Shorten DESCRIPTION in build.mjs.`,
+  );
 }
 const tier = tokens.tiers[theme.tier];
 
