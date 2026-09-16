@@ -42,14 +42,15 @@ const arg = (name, fallback) => {
 // ------------------------------------------------------------ source art ----
 
 const ART = {
-  wallpaper: 'fate-chrome-theme-wallpaper.jpg',
+  wallpaper: 'fate-chrome-theme-wallpaper.png',
   icon: 'fate-chrome-theme-icon.png',
 };
 
 // Chrome places theme_ntp_background at its natural size and never scales it,
-// so the art has to arrive at roughly viewport size. 1920x1080 covers a 1080p
-// new tab outright and centres cleanly on anything larger.
-const NTP_TARGET = { w: 1920, h: 1080 };
+// so the source art IS the final pixel grid and the build never resamples it.
+// Past roughly this size Chrome crops rather than fits, so the build says so
+// instead of silently deciding for you.
+const NTP_ADVISORY = { w: 2560, h: 1440 };
 const JPEG_QUALITY = 92;
 
 const ICON_SIZES = [16, 32, 48, 128];
@@ -232,26 +233,28 @@ for (const [name, canvas] of Object.entries(renderStrips(theme, prim))) {
   bytes += png.length;
 }
 
-// New tab page. If the source already arrives at target size it is shipped
-// byte-for-byte; otherwise it is resampled and re-encoded. JPEG rather than PNG
-// because this artwork is a photographic starfield — PNG costs ~1.4 MB for the
-// same pixels that JPEG carries in ~220 KB.
+// New tab page — the source art at its native size, never resampled, and never
+// re-encoded lossily. Format follows the source: a JPEG ships byte-for-byte, a
+// PNG is re-encoded losslessly and whichever encoding is smaller wins.
 const wallpaperArt = loadArt('wallpaper');
 const wallpaper = wallpaperArt.image;
-const atTarget = wallpaper.w === NTP_TARGET.w && wallpaper.h === NTP_TARGET.h;
 
 let ntpBytes;
+let ntpExt;
 let ntpNote;
-if (atTarget && wallpaperArt.isJpeg) {
+if (wallpaperArt.isJpeg) {
   ntpBytes = wallpaperArt.bytes;
-  ntpNote = `${wallpaper.w}x${wallpaper.h} shipped verbatim`;
+  ntpExt = 'jpg';
+  ntpNote = 'shipped verbatim';
 } else {
-  const fitted = coverResize(wallpaper, NTP_TARGET.w, NTP_TARGET.h);
-  ntpBytes = encodeJpeg(NTP_TARGET.w, NTP_TARGET.h, fitted.toBytes(), JPEG_QUALITY);
-  ntpNote = `${wallpaper.w}x${wallpaper.h} -> ${NTP_TARGET.w}x${NTP_TARGET.h}, JPEG q${JPEG_QUALITY}`;
+  const reencoded = encodePng(wallpaper.w, wallpaper.h, wallpaper.rgb);
+  const keepOriginal = wallpaperArt.bytes.length <= reencoded.length;
+  ntpBytes = keepOriginal ? wallpaperArt.bytes : reencoded;
+  ntpExt = 'png';
+  ntpNote = keepOriginal ? 'shipped verbatim' : 'losslessly re-encoded, smaller';
 }
-writeFileSync(join(imgDir, 'theme_ntp_background.jpg'), ntpBytes);
-images.theme_ntp_background = 'images/theme_ntp_background.jpg';
+writeFileSync(join(imgDir, `theme_ntp_background.${ntpExt}`), ntpBytes);
+images.theme_ntp_background = `images/theme_ntp_background.${ntpExt}`;
 bytes += ntpBytes.length;
 
 // Icons, downsampled from the source mark. PNG here — a 128px crest needs
@@ -305,7 +308,17 @@ console.log(
   `  dist/fate-chrome-theme  ${Object.keys(images).length} images, ` +
     `${ICON_SIZES.length} icons  ${(bytes / 1024 / 1024).toFixed(2)} MB`,
 );
-console.log(`  new tab background: ${ntpNote}  (${(ntpBytes.length / 1024).toFixed(0)} KB)`);
+console.log(
+  `  new tab background: ${wallpaper.w}x${wallpaper.h} native, ${ntpNote}` +
+    `  (${(ntpBytes.length / 1024).toFixed(0)} KB)`,
+);
+if (wallpaper.w > NTP_ADVISORY.w || wallpaper.h > NTP_ADVISORY.h) {
+  console.log(
+    `\n  ! ${wallpaper.w}x${wallpaper.h} is larger than most new tab viewports. Chrome places this\n` +
+      '    image at natural size and never scales it, so the edges of the art will be cropped\n' +
+      '    rather than fitted. Exporting the source at ~1920x1080 avoids that.',
+  );
+}
 
 // Store listing assets are NOT part of the uploaded package — they live in
 // dist/store/ so pack.mjs cannot sweep them into the zip.

@@ -37,26 +37,28 @@ Loading unpacked is the only install route that does not involve the Chrome Web 
 
 | File | Size | Used for |
 | --- | --- | --- |
-| `fate-chrome-theme-wallpaper.jpg` | 4000×2249 | New tab background, both promo tiles |
+| `fate-chrome-theme-wallpaper.png` | 1920×1080 | New tab background, both promo tiles |
 | `fate-chrome-theme-icon.png` | 1254×1254 | Extension and store icons, 16/32/48/128 |
 
 Replacing either file and rerunning `node build.mjs` is the whole update path. Both PNG and baseline
 JPEG sources are accepted.
 
-**The new tab background is resampled to 1920×1080 and re-encoded as JPEG q92 (~220 KB).** Two
-constraints drive that:
+**The new tab background is never resampled and never lossily re-encoded.** Chrome places
+`theme_ntp_background` at its natural size and never scales it, so the source file *is* the final
+pixel grid — the build only changes its container. A JPEG source ships byte-for-byte; a PNG source
+is re-encoded losslessly and whichever encoding is smaller wins. At 1920×1080 the art covers a 1080p
+new tab outright.
 
-- Chrome places `theme_ntp_background` at its **natural size and never scales it**. At 4000px wide,
-  a 1080p screen would show only the calm centre of the art and crop away every corner bracket and
-  constellation. 1920×1080 covers a 1080p new tab outright and centres cleanly on anything larger.
-- The artwork is a photographic starfield. The same pixels cost ~1.4 MB as PNG and ~220 KB as JPEG,
-  and Chrome accepts JPEG for theme images.
-
-If the source ever arrives already at 1920×1080 as a JPEG, the build ships it byte-for-byte instead.
+Because Chrome does not scale, a source much past ~1920×1080 gets **cropped rather than fitted** —
+the outer artwork simply falls outside the viewport. The build prints a warning above 2560×1440
+rather than silently resampling.
 
 The art's edges average `#020613`, within a rounding error of the theme's `surface.base` `#020617`.
 That is why no feathering is needed: on a screen wider or taller than the image, Chrome's
 `ntp_background` fill meets it invisibly.
+
+The promo tiles *are* resampled and encoded as JPEG — they have fixed required dimensions, so there
+is no lossless option, and they are listing artwork rather than part of the theme.
 
 ---
 
@@ -202,9 +204,10 @@ These are Chrome's, not the theme's:
 
 - Themes can only colour the browser frame, tab strip, toolbar, omnibox and new tab page. Chrome's
   menus, settings pages and dialogs follow the OS light/dark setting and cannot be themed.
-- `theme_ntp_background` is placed at its natural size, never scaled or repeated — which is why the
-  build resamples the source down to 1920×1080 rather than shipping it at 4000px. On larger screens
-  the surrounding fill is the same colour as the art's own edges, so there is no visible seam.
+- `theme_ntp_background` is placed at its natural size, never scaled or repeated. That is a Chrome
+  limitation, not a choice — it is why the source has to be authored at roughly viewport size. On
+  larger screens the surrounding fill is the same colour as the art's own edges, so there is no
+  visible seam.
 - Chrome has no theme hook for the bookmark bar background separately from the toolbar.
 
 ---
