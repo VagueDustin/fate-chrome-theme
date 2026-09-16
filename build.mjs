@@ -366,4 +366,18 @@ for (const [name, spec] of Object.entries(PROMO_TILES)) {
 writeFileSync(join(storeDir, 'store-icon-128x128.png'), readFileSync(join(iconDir, 'icon-128.png')));
 console.log(`  dist/store  ${Object.keys(PROMO_TILES).length} promo tiles + store icon`);
 
+// README banner. Committed rather than ignored, because the repo is the theme's
+// public landing page and GitHub needs the file in-tree to render it. Output is
+// deterministic, so it only shows as modified when the source art changes.
+const bannerDir = join(HERE, 'docs');
+mkdirSync(bannerDir, { recursive: true });
+// Biased high: the crescent sits near the top of the art and is the one thing
+// the banner has to keep.
+const banner = coverResize(wallpaperArt.image, 1400, 500, { focusY: 0.1 });
+writeFileSync(
+  join(bannerDir, 'banner.jpg'),
+  encodeJpeg(1400, 500, banner.toBytes(), JPEG_QUALITY),
+);
+console.log('  docs/banner.jpg  README banner');
+
 console.log('\nLoad unpacked from chrome://extensions with Developer mode on.');
