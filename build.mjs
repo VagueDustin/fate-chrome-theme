@@ -1,37 +1,81 @@
 #!/usr/bin/env node
 /**
- * FATE — Chrome theme generator for VagueDustin Enterprises.
+ * FATE — Chrome theme build.
  *
- * Every colour and every pixel below is derived from the canonical design
- * language in `@vaguedustin/brand`. No house hex is written here: the only
- * inputs are semantic roles (`surface.raised`, `accent.default`, ...) and the
- * primitives they resolve to. Retune the brand package, rerun this script, and
- * the theme follows.
+ * Two inputs, nothing invented from either:
  *
- *   node build.mjs                          # vendored brand/tokens.json
+ *   Colour   the canonical brand tokens. No house hex is written in this file;
+ *            it consumes semantic roles (surface.raised, accent.default,
+ *            text.faint) so a retune of the brand package flows straight
+ *            through to every Chrome surface.
+ *   Artwork  the source art in this directory. Per the brand repo's rule —
+ *            derive, never improvise — the new tab page, icons and promo tiles
+ *            are all conditioned from those files by a recorded step rather
+ *            than drawn here.
+ *
+ *   node build.mjs
  *   node build.mjs --brand=../vaguedustin-brand
- *   node build.mjs --themes=gold-navy
+ *   node build.mjs --theme=gold-navy --version=1.2.0
  */
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, statSync } from 'node:fs';
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { encodePng } from './lib/png.mjs';
-import {
-  Canvas,
-  verticalStrip,
-  downsample,
-  hexToRgb,
-  mix,
-  smoothstep,
-  mulberry32,
-  clamp,
-} from './lib/paint.mjs';
+import { encodePng, decodePng } from './lib/png.mjs';
+import { decodeJpeg } from './lib/jpeg.mjs';
+import { encodeJpeg } from './lib/jpeg-encode.mjs';
+import { Canvas, verticalStrip, downsample, hexToRgb, mix, clamp } from './lib/paint.mjs';
+import { coverResize } from './lib/resample.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const arg = (name, fallback) => {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
   return hit ? hit.slice(name.length + 3) : fallback;
 };
+
+// ------------------------------------------------------------ source art ----
+
+const ART = {
+  wallpaper: 'fate-chrome-theme-wallpaper.jpg',
+  icon: 'fate-chrome-theme-icon.png',
+};
+
+// Chrome places theme_ntp_background at its natural size and never scales it,
+// so the art has to arrive at roughly viewport size. 1920x1080 covers a 1080p
+// new tab outright and centres cleanly on anything larger.
+const NTP_TARGET = { w: 1920, h: 1080 };
+const JPEG_QUALITY = 92;
+
+const ICON_SIZES = [16, 32, 48, 128];
+const PROMO_TILES = {
+  // The wallpaper's interesting detail sits around its edges and its centre is
+  // deliberately calm, so the tiles crop from the upper band rather than dead
+  // centre — otherwise a tile is mostly empty navy.
+  'promo-small-440x280': { w: 440, h: 280, focusY: 0.34 },
+  'promo-marquee-1400x560': { w: 1400, h: 560, focusY: 0.4 },
+};
+
+const STRIP_W = 64; // uniform across x, so Chrome tiles it without a seam
+const STRIP_H = 160; // taller than any Chrome frame or toolbar band
+
+/** Load source art as flat RGB, dispatching on file type. */
+function loadArt(key) {
+  const name = ART[key];
+  const path = join(HERE, name);
+  if (!existsSync(path)) {
+    throw new Error(`Missing source art: ${name}\nExpected it in ${HERE}. See README -> Source art.`);
+  }
+  const bytes = readFileSync(path);
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
+  const image = isJpeg ? decodeJpeg(bytes) : decodePng(bytes);
+  return { name, bytes, image, isJpeg };
+}
 
 // ---------------------------------------------------------------- tokens ----
 
@@ -61,211 +105,12 @@ function parseRgba(str) {
   return { rgb: [+m[1], +m[2], +m[3]], a: m[4] === undefined ? 1 : +m[4] };
 }
 
-/**
- * Parse the house depth wash straight out of `primitives.gradient.navyDepth`
- * so a retune of that token flows into the artwork.
- *
- * Handles: radial-gradient([ellipse ]<rx> <ry> at <cx> <cy>, rgba(...), transparent[ <n>%])
- */
-function parseDepthWash(css) {
-  const layers = [];
-  const re = /radial-gradient\(/g;
-  let m;
-  while ((m = re.exec(css))) {
-    let depth = 1;
-    let i = m.index + m[0].length;
-    const start = i;
-    while (i < css.length && depth > 0) {
-      if (css[i] === '(') depth++;
-      else if (css[i] === ')') depth--;
-      i++;
-    }
-    const body = css.slice(start, i - 1).trim();
-    const spec =
-      /^(?:ellipse\s+)?(-?[\d.]+(?:px|%))\s+(-?[\d.]+(?:px|%))\s+at\s+(-?[\d.]+(?:px|%))\s+(-?[\d.]+(?:px|%))\s*,\s*(rgba?\([^)]*\))\s*,\s*transparent(?:\s+([\d.]+)%)?$/i.exec(
-        body,
-      );
-    if (!spec) throw new Error(`Unrecognised depth-wash layer: ${body}`);
-    const { rgb, a } = parseRgba(spec[5]);
-    layers.push({
-      rx: spec[1],
-      ry: spec[2],
-      cx: spec[3],
-      cy: spec[4],
-      rgb,
-      alpha: a,
-      stop: spec[6] === undefined ? 1 : +spec[6] / 100,
-    });
-  }
-  if (!layers.length) throw new Error('No radial-gradient layers found in navyDepth token');
-  return layers;
-}
-
-/** Pull the hex stops out of a simple `linear-gradient(135deg, #A, #B)` token. */
-function parseLinearStops(css) {
-  const hits = css.match(/#[0-9a-f]{6}/gi);
-  if (!hits || hits.length < 2) throw new Error(`Cannot parse gradient stops: ${css}`);
-  return hits;
-}
-
-// The token's px radii are authored against a 1920-wide viewport.
-const AUTHORED_VIEWPORT = 1920;
-const unit = (v, axis, W, H) => {
-  const n = parseFloat(v);
-  if (v.endsWith('%')) return (n / 100) * (axis === 'x' ? W : H);
-  return n * (W / AUTHORED_VIEWPORT);
-};
-
-// ------------------------------------------------------------- artwork ------
-
-const NTP_W = 2560;
-const NTP_H = 1440;
-const STRIP_W = 64; // uniform across x, so Chrome tiles it without a seam
-const STRIP_H = 160; // taller than any Chrome frame/toolbar band
+// --------------------------------------------------------------- artwork ----
 
 /**
- * The house scene — depth wash, starfield, sparkles, crescent moon, plus the
- * tier's optional corner brackets and film grain. Shared by the new tab page
- * and the store promo tiles so the two can never drift apart.
+ * Frame, toolbar and inactive-tab strips. These stay generated: they are pure
+ * token gradients, and Chrome tiles them, so they must be uniform across x.
  */
-function renderScene(theme, tier, prim, wash, opts) {
-  const {
-    w: W,
-    h: H,
-    mask = () => 1,
-    calm = () => 1,
-    moon,
-    starDivisor = 7600,
-    bracketInset = 0.08,
-    bracketArm = 0.055,
-    seed = 0x0fa7e,
-  } = opts;
-
-  const t = theme.tokens;
-  const c = new Canvas(W, H, hexToRgb(t.surface.base));
-  const rand = mulberry32(seed);
-
-  for (const L of wash) {
-    c.radial({
-      cx: unit(L.cx, 'x', W, H),
-      cy: unit(L.cy, 'y', W, H),
-      rx: unit(L.rx, 'x', W, H),
-      ry: unit(L.ry, 'y', W, H),
-      rgb: L.rgb,
-      alpha: L.alpha,
-      stop: L.stop,
-      mask,
-    });
-  }
-
-  const gold300 = hexToRgb(prim.gold['300']);
-  const gold500 = hexToRgb(prim.gold['500']);
-  const accent = hexToRgb(t.accent.default);
-  const inkPrimary = hexToRgb(t.text.primary);
-  const ceremonial = tier.id === 'ceremonial';
-  // Stars are drawn in absolute pixels, so they must not shrink on a small tile.
-  const scale = W / NTP_W;
-
-  // Starfield — cool ink dust with a gold minority, the house celestial motif.
-  const starCount = Math.round((W * H) / starDivisor);
-  for (let i = 0; i < starCount; i++) {
-    const x = rand() * W;
-    const y = rand() * H;
-    const golden = rand() < 0.28;
-    const r = (0.7 + rand() * (golden ? 1.9 : 1.3)) * Math.max(1, scale);
-    const a = (0.1 + rand() * 0.42) * mask(Math.round(x), Math.round(y)) * calm(x, y);
-    c.dot(x, y, r, golden ? gold300 : inkPrimary, a, 2.1);
-  }
-
-  // Four-point sparkles — the wordmark's signature star.
-  const sparkles = ceremonial ? 16 : 9;
-  for (let i = 0; i < sparkles; i++) {
-    const x = rand() < 0.5 ? rand() * W * 0.26 : W * (0.74 + rand() * 0.26);
-    const y = rand() * H * 0.92;
-    const len = (6 + rand() * (ceremonial ? 16 : 10)) * Math.max(0.5, scale);
-    const a = (ceremonial ? 0.3 : 0.2) * (0.5 + rand() * 0.5) * mask(Math.round(x), Math.round(y));
-    c.sparkle(x, y, len, gold300, a);
-  }
-
-  // Crescent moon — the motif tucked into the `V` of the company wordmark.
-  // Gold has to carry real weight here: a pale gold laid on navy at low alpha
-  // lands on neutral grey, which reads as off-brand rather than restrained.
-  const [foilA, foilB] = parseLinearStops(prim.gradient.goldEdge).map(hexToRgb);
-  const mx = W * moon.x;
-  const my = H * moon.y;
-  const mr = W * moon.r;
-  c.dot(mx, my, mr * 2.8, gold500, ceremonial ? 0.07 : 0.045, 2.4);
-  c.crescent(mx, my, mr, -0.62, foilA, foilB, ceremonial ? 0.52 : 0.4);
-
-  // Corner brackets — ceremonial / charted tiers only (AGENTS.md §5).
-  if (tier.surface.cornerAccents) {
-    const inset = Math.round(W * bracketInset);
-    const arm = Math.round(W * bracketArm);
-    const weight = Math.max(1, Math.round(2 * scale));
-    const a = 0.26;
-    for (const [x, y, sx, sy] of [
-      [inset, inset, 1, 1],
-      [W - 1 - inset, inset, -1, 1],
-      [inset, H - 1 - inset, 1, -1],
-      [W - 1 - inset, H - 1 - inset, -1, -1],
-    ]) {
-      c.line(x, y, x + arm * sx, y, accent, a * mask(x, y), weight);
-      c.line(x, y, x, y + arm * sy, accent, a * mask(x, y), weight);
-    }
-  }
-
-  // Film grain — ceremonial / charted tiers only.
-  if (tier.surface.texture) c.grain(rand, 2.2, 2);
-
-  return c;
-}
-
-function renderNtp(theme, tier, prim, wash) {
-  // The image is top-aligned and flush under the toolbar, so only the left,
-  // right and bottom edges need to settle into `ntp_background` exactly. The
-  // ramp is wide and twice-eased: a short one leaves a visible ring where it
-  // cuts across the depth wash on the right-hand side.
-  const padX = Math.round(NTP_W * 0.13);
-  const padY = Math.round(NTP_H * 0.16);
-
-  return renderScene(theme, tier, prim, wash, {
-    w: NTP_W,
-    h: NTP_H,
-    mask: (x, y) =>
-      smoothstep(smoothstep(Math.min(x / padX, (NTP_W - 1 - x) / padX, (NTP_H - 1 - y) / padY, 1))),
-    // Chrome's own new-tab furniture (logo, search box, shortcut tiles) lives
-    // here; keep the starfield quiet behind it rather than cutting a hard hole.
-    calm: (x, y) => {
-      const nx = x / NTP_W;
-      const ny = y / NTP_H;
-      return nx > 0.26 && nx < 0.74 && ny > 0.1 && ny < 0.7 ? 0.22 : 1;
-    },
-    // Clear of both the ceremonial corner bracket and the new-tab calm zone.
-    moon: { x: 0.19, y: 0.225, r: 0.038 },
-  });
-}
-
-/**
- * Chrome Web Store promo tiles. Listing assets, NOT part of the uploaded
- * package — they go to dist/store/ so `pack.mjs` never sweeps them into a zip.
- * Nothing is masked or kept calm here: the whole canvas is visible artwork.
- */
-const PROMO_TILES = {
-  'promo-small-440x280': [440, 280],
-  'promo-marquee-1400x560': [1400, 560],
-};
-
-function renderPromo(theme, tier, prim, wash, w, h) {
-  return renderScene(theme, tier, prim, wash, {
-    w,
-    h,
-    moon: { x: 0.22, y: 0.46, r: 0.09 },
-    starDivisor: 2600,
-    bracketInset: 0.045,
-    bracketArm: 0.05,
-  });
-}
-
 function renderStrips(theme, prim) {
   const t = theme.tokens;
   const frame = hexToRgb(t.surface.sunken);
@@ -304,55 +149,7 @@ function renderStrips(theme, prim) {
   };
 }
 
-/**
- * Store / extensions-page icon.
- *
- * The Chrome Web Store listing requires a 128px icon, and the brand repo has no
- * vector master to derive one from (`brand/README.md` -> Missing / to do). This
- * is built from the two house motifs the wordmark already carries — the crescent
- * moon and a four-point sparkle, on the depth wash — so it is consistent with
- * the rest of the system, but it is a stand-in for a real mark, not one.
- */
-const ICON_SIZES = [16, 32, 48, 128];
-const ICON_SUPERSAMPLE = 512;
-
-function renderIcon(theme, prim, wash) {
-  const S = ICON_SUPERSAMPLE;
-  const t = theme.tokens;
-  const c = new Canvas(S, S, hexToRgb(t.surface.base));
-
-  for (const L of wash) {
-    c.radial({
-      cx: unit(L.cx, 'x', S, S),
-      cy: unit(L.cy, 'y', S, S),
-      rx: unit(L.rx, 'x', S, S),
-      ry: unit(L.ry, 'y', S, S),
-      rgb: L.rgb,
-      alpha: L.alpha,
-      stop: L.stop,
-    });
-  }
-
-  const [foilA, foilB] = parseLinearStops(prim.gradient.goldEdge).map(hexToRgb);
-  const gold300 = hexToRgb(prim.gold['300']);
-  const accent = hexToRgb(t.accent.default);
-
-  c.dot(S * 0.46, S * 0.5, S * 0.42, hexToRgb(prim.gold['500']), 0.1, 2.4);
-  c.crescent(S * 0.46, S * 0.5, S * 0.3, -0.62, foilA, foilB, 0.95);
-  c.sparkle(S * 0.74, S * 0.29, S * 0.1, gold300, 0.85);
-
-  // Gilded hairline keyline, inset like a struck edge.
-  const inset = Math.round(S * 0.055);
-  const w = Math.max(1, Math.round(S * 0.012));
-  c.line(inset, inset, S - 1 - inset, inset, accent, 0.5, w);
-  c.line(inset, S - 1 - inset - w, S - 1 - inset, S - 1 - inset - w, accent, 0.5, w);
-  c.line(inset, inset, inset, S - 1 - inset, accent, 0.5, w);
-  c.line(S - 1 - inset - w, inset, S - 1 - inset - w, S - 1 - inset, accent, 0.5, w);
-
-  return Object.fromEntries(ICON_SIZES.map((s) => [s, downsample(c, s, s)]));
-}
-
-// ------------------------------------------------------------- manifest -----
+// -------------------------------------------------------------- manifest ----
 
 const toChrome = (rgb) => rgb.map((v) => Math.round(clamp(v, 0, 255)));
 
@@ -386,125 +183,144 @@ function buildColors(theme) {
     omnibox_background: toChrome(hexToRgb(t.surface.overlay)),
     omnibox_text: toChrome(hexToRgb(t.text.primary)),
 
+    // The wallpaper's own edges average #020613, so this fill meets them
+    // invisibly on screens wider or taller than the art.
     ntp_background: toChrome(hexToRgb(t.surface.base)),
     ntp_text: toChrome(hexToRgb(t.text.primary)),
     ntp_link: toChrome(hexToRgb(t.accent.default)),
   };
 }
 
-const BLURB = {
-  'gold-navy':
-    'Deep navy and metallic gold across every Chrome surface. Restrained, legible, all day — and lit from just off the page.',
-  'gilded-fate':
-    'Deep navy and metallic gold across every Chrome surface, gilded and ceremonial. The thread is already in motion.',
-  admiralty:
-    'Deep navy and antique gold across every Chrome surface, charted and engraved. Every window a survey of somewhere further out.',
-  realm:
-    'Deep navy and warm gold across every Chrome surface, parchment-lit. A browser dressed for the realm it opens onto.',
-};
+const DESCRIPTION =
+  'Deep navy and metallic gold across every Chrome surface — constellations, ' +
+  'nebula and a gilded crescent. The thread is already in motion.';
 
-// ----------------------------------------------------------------- main -----
+// ------------------------------------------------------------------ main ----
 
 const { tokens, source } = loadTokens();
 const prim = tokens.primitives;
-const wash = parseDepthWash(prim.gradient.navyDepth);
+const themeId = arg('theme', 'gilded-fate');
 const version = arg('version', '1.0.0');
-const requested = arg('themes', 'gold-navy,gilded-fate')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+
+const theme = tokens.themes[themeId];
+if (!theme) {
+  throw new Error(`Unknown theme "${themeId}". Available: ${Object.keys(tokens.themes).join(', ')}`);
+}
+const tier = tokens.tiers[theme.tier];
 
 console.log(`brand tokens : ${relative(HERE, source) || source}`);
-console.log(`depth wash   : ${wash.length} radial layers from primitives.gradient.navyDepth`);
+console.log(`theme        : ${theme.name} (${themeId}), ${tier.name} tier`);
 console.log('');
 
 const distRoot = join(HERE, 'dist');
 if (existsSync(distRoot)) rmSync(distRoot, { recursive: true });
 
-for (const id of requested) {
-  const theme = tokens.themes[id];
-  if (!theme) {
-    throw new Error(`Unknown theme "${id}". Available: ${Object.keys(tokens.themes).join(', ')}`);
-  }
-  const tier = tokens.tiers[theme.tier];
+const outDir = join(distRoot, 'fate-chrome-theme');
+const imgDir = join(outDir, 'images');
+const iconDir = join(outDir, 'icons');
+mkdirSync(imgDir, { recursive: true });
+mkdirSync(iconDir, { recursive: true });
 
-  const outDir = join(distRoot, `fate-${id}`);
-  const imgDir = join(outDir, 'images');
-  mkdirSync(imgDir, { recursive: true });
+const images = {};
+let bytes = 0;
 
-  const canvases = renderStrips(theme, prim);
-  canvases['theme_ntp_background.png'] = renderNtp(theme, tier, prim, wash);
+// Token-derived chrome strips.
+for (const [name, canvas] of Object.entries(renderStrips(theme, prim))) {
+  const png = encodePng(canvas.w, canvas.h, canvas.toBytes());
+  writeFileSync(join(imgDir, name), png);
+  images[name.replace(/\.png$/, '')] = `images/${name}`;
+  bytes += png.length;
+}
 
-  const images = {};
-  let bytes = 0;
-  for (const [name, canvas] of Object.entries(canvases)) {
-    const png = encodePng(canvas.w, canvas.h, canvas.toBytes());
-    writeFileSync(join(imgDir, name), png);
-    images[name.replace(/\.png$/, '')] = `images/${name}`;
-    bytes += png.length;
-  }
+// New tab page. If the source already arrives at target size it is shipped
+// byte-for-byte; otherwise it is resampled and re-encoded. JPEG rather than PNG
+// because this artwork is a photographic starfield — PNG costs ~1.4 MB for the
+// same pixels that JPEG carries in ~220 KB.
+const wallpaperArt = loadArt('wallpaper');
+const wallpaper = wallpaperArt.image;
+const atTarget = wallpaper.w === NTP_TARGET.w && wallpaper.h === NTP_TARGET.h;
 
-  const iconDir = join(outDir, 'icons');
-  mkdirSync(iconDir, { recursive: true });
-  const icons = {};
-  for (const [size, canvas] of Object.entries(renderIcon(theme, prim, wash))) {
-    const png = encodePng(canvas.w, canvas.h, canvas.toBytes());
-    writeFileSync(join(iconDir, `icon-${size}.png`), png);
-    icons[size] = `icons/icon-${size}.png`;
-    bytes += png.length;
-  }
+let ntpBytes;
+let ntpNote;
+if (atTarget && wallpaperArt.isJpeg) {
+  ntpBytes = wallpaperArt.bytes;
+  ntpNote = `${wallpaper.w}x${wallpaper.h} shipped verbatim`;
+} else {
+  const fitted = coverResize(wallpaper, NTP_TARGET.w, NTP_TARGET.h);
+  ntpBytes = encodeJpeg(NTP_TARGET.w, NTP_TARGET.h, fitted.toBytes(), JPEG_QUALITY);
+  ntpNote = `${wallpaper.w}x${wallpaper.h} -> ${NTP_TARGET.w}x${NTP_TARGET.h}, JPEG q${JPEG_QUALITY}`;
+}
+writeFileSync(join(imgDir, 'theme_ntp_background.jpg'), ntpBytes);
+images.theme_ntp_background = 'images/theme_ntp_background.jpg';
+bytes += ntpBytes.length;
 
-  // Store listing assets are NOT part of the uploaded package — they live in
-  // dist/store/ so pack.mjs cannot sweep them into the zip.
-  const storeDir = join(distRoot, 'store', id);
-  mkdirSync(storeDir, { recursive: true });
-  for (const [pname, [pw, ph]] of Object.entries(PROMO_TILES)) {
-    const canvas = renderPromo(theme, tier, prim, wash, pw, ph);
-    writeFileSync(join(storeDir, `${pname}.png`), encodePng(pw, ph, canvas.toBytes()));
-  }
-  writeFileSync(
-    join(storeDir, 'store-icon-128x128.png'),
-    readFileSync(join(iconDir, 'icon-128.png')),
-  );
+// Icons, downsampled from the source mark. PNG here — a 128px crest needs
+// crisp edges, and at this size the file is tiny either way.
+const iconArt = loadArt('icon');
+const iconSrc = iconArt.image;
+const iconCanvas = new Canvas(iconSrc.w, iconSrc.h, [0, 0, 0]);
+for (let i = 0; i < iconSrc.rgb.length; i++) iconCanvas.px[i] = iconSrc.rgb[i];
 
-  const manifest = {
-    manifest_version: 3,
-    name: `FATE — ${theme.name}`,
-    version,
-    description:
-      BLURB[id] ?? `The ${theme.name} theme from the VagueDustin Enterprises design language.`,
-    icons,
-    theme: {
-      images,
-      colors: buildColors(theme),
-      properties: {
-        ntp_background_alignment: 'top',
-        ntp_background_repeat: 'no-repeat',
-        ntp_logo_alternate: 1, // white Google logo — every house surface is dark
-      },
+const icons = {};
+for (const size of ICON_SIZES) {
+  const shrunk = downsample(iconCanvas, size, size);
+  const png = encodePng(size, size, shrunk.toBytes());
+  writeFileSync(join(iconDir, `icon-${size}.png`), png);
+  icons[size] = `icons/icon-${size}.png`;
+  bytes += png.length;
+}
+
+const manifest = {
+  manifest_version: 3,
+  name: 'FATE',
+  version,
+  description: DESCRIPTION,
+  icons,
+  theme: {
+    images,
+    colors: buildColors(theme),
+    properties: {
+      ntp_background_alignment: 'top',
+      ntp_background_repeat: 'no-repeat',
+      ntp_logo_alternate: 1, // white Google logo — every house surface is dark
     },
-  };
+  },
+};
 
-  writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+writeFileSync(
+  join(outDir, 'CREDIT.txt'),
+  [
+    tokens.brand.credit,
+    '',
+    `${theme.name} — ornament tier: ${tier.name} (${tier.id})`,
+    `Origin: ${theme.origin}`,
+    '',
+    'Generated by build.mjs from the canonical brand tokens and the source art',
+    'in the repository root. Do not hand-edit.',
+  ].join('\n') + '\n',
+);
+
+console.log(
+  `  dist/fate-chrome-theme  ${Object.keys(images).length} images, ` +
+    `${ICON_SIZES.length} icons  ${(bytes / 1024 / 1024).toFixed(2)} MB`,
+);
+console.log(`  new tab background: ${ntpNote}  (${(ntpBytes.length / 1024).toFixed(0)} KB)`);
+
+// Store listing assets are NOT part of the uploaded package — they live in
+// dist/store/ so pack.mjs cannot sweep them into the zip.
+const storeDir = join(distRoot, 'store');
+mkdirSync(storeDir, { recursive: true });
+for (const [name, spec] of Object.entries(PROMO_TILES)) {
+  const tile = coverResize(wallpaper, spec.w, spec.h, { focusY: spec.focusY });
+  // The store takes JPEG or 24-bit PNG for tiles; JPEG is a fraction of the size
+  // on this artwork and the listing form does not care which.
   writeFileSync(
-    join(outDir, 'CREDIT.txt'),
-    [
-      tokens.brand.credit,
-      '',
-      `${theme.name} — ornament tier: ${tier.name} (${tier.id})`,
-      `Origin: ${theme.origin}`,
-      '',
-      'Generated by build.mjs from the canonical brand tokens. Do not hand-edit.',
-    ].join('\n') + '\n',
-  );
-
-  console.log(
-    `  dist/fate-${id}  tier=${tier.id}  images=${Object.keys(images).length}  ${(
-      bytes /
-      1024 /
-      1024
-    ).toFixed(2)} MB`,
+    join(storeDir, `${name}.jpg`),
+    encodeJpeg(spec.w, spec.h, tile.toBytes(), JPEG_QUALITY),
   );
 }
+writeFileSync(join(storeDir, 'store-icon-128x128.png'), readFileSync(join(iconDir, 'icon-128.png')));
+console.log(`  dist/store  ${Object.keys(PROMO_TILES).length} promo tiles + store icon`);
 
 console.log('\nLoad unpacked from chrome://extensions with Developer mode on.');

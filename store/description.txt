@@ -2,11 +2,7 @@ A deep navy and metallic gold theme for Chrome, drawn from the VagueDustin Enter
 
 Every surface is covered — window frame, tab strip, toolbar, omnibox, bookmarks bar and the new tab page. Gold is reserved for the controls you actually press: back, forward, reload, menu. Everything else stays quiet, so the browser reads as still until you reach for it.
 
-The new tab page carries a layered navy depth wash, a scattered starfield, four-point sparkles, and a crescent moon struck in antique gold foil.
-
-WHICH BUILD IS THIS
-
-Gilded Fate is the ceremonial build — brighter gold, ornamental corner brackets, and a fine film grain over the whole surface. If you want something more restrained to sit behind a full working day, install FATE — Gold & Navy instead. Same palette, less ornament.
+The new tab page opens onto a painted night sky — constellations drawn in gold hairlines, deep nebula, four-point stars, and a gilded crescent. The centre is left deliberately calm, so your search box and shortcuts stay legible against it.
 
 WHAT IT DOESN'T DO
 

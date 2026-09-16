@@ -1,12 +1,22 @@
-# FATE — Chrome themes
+# FATE — Chrome theme
 
-Chrome browser themes built from the canonical VagueDustin Enterprises design language.
-Deep navy, metallic gold, the depth wash, the celestial motifs. Nothing here is hand-picked —
-every colour and every pixel is derived from `@vaguedustin/brand` at build time.
+A Chrome theme in the VagueDustin Enterprises design language. Deep navy, metallic gold,
+constellations and nebula.
+
+Two inputs, nothing invented from either:
 
 ```
-brand tokens  →  build.mjs  →  dist/fate-<theme>/   (manifest.json + generated PNGs)
+brand tokens  ─┐
+               ├─ build.mjs ─→ dist/fate-chrome-theme/   (manifest.json + images)
+source art    ─┘              dist/store/                (listing assets)
 ```
+
+- **Colour** comes from the canonical brand tokens. No house hex is written anywhere in the
+  generator — it consumes semantic roles (`surface.raised`, `accent.default`, `text.faint`), so a
+  retune of the brand package flows through with one command.
+- **Artwork** comes from the source art in this repo. Per the brand rule — *derive, never
+  improvise* — the new tab page, icons and promo tiles are conditioned from those files by a
+  recorded step rather than drawn by the build.
 
 ---
 
@@ -14,56 +24,58 @@ brand tokens  →  build.mjs  →  dist/fate-<theme>/   (manifest.json + generat
 
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top right)
-3. **Load unpacked** → pick one of:
-   - `dist/fate-gold-navy` — **start here**
-   - `dist/fate-gilded-fate`
+3. **Load unpacked** → `dist/fate-chrome-theme`
 
-The theme applies immediately. Chrome holds one theme at a time, so loading the other one
-replaces it; `chrome://settings/appearance` → **Reset to default** removes it.
+Chrome holds one theme at a time. `chrome://settings/appearance` → **Reset to default** removes it.
 
-Loading unpacked is the only install route that does not involve the Chrome Web Store. If you
-want it to survive without Developer mode, it has to be published (see *Packaging* below).
+Loading unpacked is the only install route that does not involve the Chrome Web Store — see
+*Distribution*.
 
 ---
 
-## The two builds
+## Source art
 
-Both are the same design language at different **ornament tiers** — the tier is read out of the
-brand package, not chosen here, so each build automatically obeys the rules in `AGENTS.md` §5.
-
-| | `fate-gold-navy` | `fate-gilded-fate` |
+| File | Size | Used for |
 | --- | --- | --- |
-| Brand theme | Gold & Navy (hallmark) | Gilded Fate (hallmark) |
-| Origin | Fated Updates | Fatenames |
-| Tier | **Utility** | **Ceremonial** |
-| Accent | `#D4AF37` metallic gold | `#F2C94C` lit gold |
-| Frame / toolbar | `#020617` / `#101736` | `#020617` / `#0A0E27` |
-| New tab: corner brackets | — | ✅ |
-| New tab: film grain | — | ✅ |
-| Sparkle density | 9 | 16 |
+| `fate-chrome-theme-wallpaper.jpg` | 4000×2249 | New tab background, both promo tiles |
+| `fate-chrome-theme-icon.png` | 1254×1254 | Extension and store icons, 16/32/48/128 |
 
-`gold-navy` is the recommended default, for the reason the brand repo gives: *under-decorated is a
-recoverable mistake, over-decorated is a rewrite.* A browser frame is in your eyeline all day.
+Replacing either file and rerunning `node build.mjs` is the whole update path. Both PNG and baseline
+JPEG sources are accepted.
+
+**The new tab background is resampled to 1920×1080 and re-encoded as JPEG q92 (~220 KB).** Two
+constraints drive that:
+
+- Chrome places `theme_ntp_background` at its **natural size and never scales it**. At 4000px wide,
+  a 1080p screen would show only the calm centre of the art and crop away every corner bracket and
+  constellation. 1920×1080 covers a 1080p new tab outright and centres cleanly on anything larger.
+- The artwork is a photographic starfield. The same pixels cost ~1.4 MB as PNG and ~220 KB as JPEG,
+  and Chrome accepts JPEG for theme images.
+
+If the source ever arrives already at 1920×1080 as a JPEG, the build ships it byte-for-byte instead.
+
+The art's edges average `#020613`, within a rounding error of the theme's `surface.base` `#020617`.
+That is why no feathering is needed: on a screen wider or taller than the image, Chrome's
+`ntp_background` fill meets it invisibly.
 
 ---
 
 ## How the design language maps onto Chrome
 
-Chrome exposes a fixed set of theme keys. Each one is fed a **semantic role**, never a raw hex, so
-a retune of the brand package flows straight through.
+Chrome exposes a fixed set of theme keys. Each is fed a **semantic role**, never a raw hex.
 
-| Chrome key | Semantic token | `gold-navy` | `gilded-fate` |
-| --- | --- | --- | --- |
-| `frame` | `surface.sunken` | `#020617` | `#020617` |
-| `toolbar` | `surface.raised` | `#101736` | `#0A0E27` |
-| `omnibox_background` | `surface.overlay` | `#16213E` | `#101736` |
-| `ntp_background` | `surface.base` | `#070B1A` | `#020617` |
-| `tab_text`, `omnibox_text`, `ntp_text` | `text.primary` | `#E6EAF2` | `#E6EAF2` |
-| `tab_background_text`, `bookmark_text` | `text.muted` | `#94A0BB` | `#94A0BB` |
-| `tab_background_text_inactive` | `text.faint` | `#76849F` | `#76849F` |
-| `toolbar_button_icon`, `ntp_link` | `accent.default` | `#D4AF37` | `#F2C94C` |
-| `button_background` | `accent.subtle` | 12% gold | 12% gold |
-| `frame_inactive` / `frame_incognito` | `surface.sunken` mixed toward black | derived | derived |
+| Chrome key | Semantic token | Value |
+| --- | --- | --- |
+| `frame` | `surface.sunken` | `#020617` |
+| `toolbar` | `surface.raised` | `#0A0E27` |
+| `omnibox_background` | `surface.overlay` | `#101736` |
+| `ntp_background` | `surface.base` | `#020617` |
+| `tab_text`, `omnibox_text`, `ntp_text` | `text.primary` | `#E6EAF2` |
+| `tab_background_text`, `bookmark_text` | `text.muted` | `#94A0BB` |
+| `tab_background_text_inactive` | `text.faint` | `#76849F` |
+| `toolbar_button_icon`, `ntp_link` | `accent.default` | `#F2C94C` |
+| `button_background` | `accent.subtle` | 12% gold |
+| `frame_inactive` / `frame_incognito` | `surface.sunken` mixed toward black | derived |
 
 Three decisions worth recording:
 
@@ -72,46 +84,35 @@ Three decisions worth recording:
   not on tab labels, and never on a status colour.
 - **`text.faint` is `#76849F`.** The darker `#5C6B8A` fails WCAG AA on navy; the brand repo flags
   that regression as already having happened once. It is fed from the token, so it cannot drift here.
-- **Toolbar doubles as the active tab fill** in Chrome, which is why it takes `surface.raised` —
-  the selected tab then reads as lifted out of the frame, matching the panel model in the system.
+- **Toolbar doubles as the active tab fill** in Chrome, which is why it takes `surface.raised` — the
+  selected tab then reads as lifted out of the frame, matching the panel model in the system.
 
-### The generated images
+### Generated images
+
+Only the chrome strips are generated, because they are pure token gradients:
 
 | Image | Size | What it is |
 | --- | --- | --- |
 | `theme_frame*.png` | 64×160 | Vertical gradient into `surface.sunken`. Four variants: active, inactive, incognito, incognito-inactive. |
 | `theme_toolbar.png` | 64×160 | `surface.raised` settling downward, with the `inset 0 1px 0 rgba(255,233,168,0.08)` gilded hairline on its top edge — the stroke that makes a dark surface read as *gilded* rather than merely dark. |
 | `theme_tab_background.png` | 64×160 | Inactive tabs, sitting between frame and toolbar. |
-| `theme_ntp_background.png` | 2560×1440 | The new tab page. |
 
-The strips are 64px wide and **uniform across x on purpose** — Chrome tiles theme images, so a
+They are 64px wide and **uniform across x on purpose** — Chrome tiles theme images, so a
 horizontally-uniform strip is seamless at any window width, including ultrawide.
-
-The new tab page is composed from the brand tokens directly:
-
-- The **depth wash** is parsed out of `primitives.gradient.navyDepth` and its three radial layers are
-  rendered literally, scaled from the 1920px viewport they were authored against. Edit that token and
-  the artwork changes.
-- The **crescent moon** is the motif tucked into the `V` of the company wordmark, filled with the
-  `primitives.gradient.goldEdge` foil ramp.
-- The **starfield and four-point sparkles** are the celestial motif the whole house inherits.
-- Corner brackets and film grain appear only where the theme's tier turns them on.
-
-Everything is drawn from a seeded PRNG, so a rebuild is byte-identical.
 
 ---
 
 ## Rebuilding
 
 ```bash
-node build.mjs
+node build.mjs && node pack.mjs
 ```
 
-No dependencies — the PNG encoder in `lib/png.mjs` is about 90 lines over Node's `zlib`.
+No dependencies. The PNG codec, the baseline JPEG codec, the ZIP writer and the resampler are all
+hand-rolled — Node ships no image handling, and this project brings none in.
 
-Tokens are resolved in this order: `--brand=`, then `node_modules/@vaguedustin/brand`, then the
-vendored copy in `brand/tokens.json`. To build against the live brand repo instead of the vendored
-snapshot:
+Tokens resolve in this order: `--brand=`, then `node_modules/@vaguedustin/brand`, then the vendored
+`brand/tokens.json`. To build against the live brand repo instead of the vendored snapshot:
 
 ```bash
 node build.mjs --brand="../FATE - VagueDustin Enterprises - Branding/vaguedustin-brand"
@@ -120,91 +121,78 @@ node build.mjs --brand="../FATE - VagueDustin Enterprises - Branding/vaguedustin
 Other flags:
 
 ```bash
-node build.mjs --themes=gold-navy          # one variant
-node build.mjs --themes=admiralty,realm    # the derived themes also work
-node build.mjs --version=1.1.0
+node build.mjs --theme=gold-navy     # any theme in the brand package
+node build.mjs --version=1.2.0
 ```
-
-`brand/tokens.json` is a verbatim copy of `dist/tokens.json` from the brand package. Refresh it
-whenever the design language is retuned.
 
 ---
 
 ## Distribution
 
-```bash
-node build.mjs && node pack.mjs   # -> dist/fate-*.zip
-```
-
-`pack.mjs` puts `manifest.json` at the **root** of the archive, which is what the Web Store
-requires and the most common reason an upload is rejected.
+`pack.mjs` puts `manifest.json` at the **root** of the archive, which is what the Web Store requires
+and the most common reason an upload is rejected.
 
 ### Chrome Web Store — the only one-click install
 
 Chrome refuses to install a `.crx` that Google did not sign. There is no link, no installer and no
-drag-and-drop that gets around it: off-store installs are Developer mode + Load unpacked, full stop.
-So if you want someone to click once and have the theme applied, it has to be listed.
+drag-and-drop around it: off-store installs are Developer mode + Load unpacked, full stop. So if you
+want someone to click once and have the theme applied, it has to be listed.
 
 1. Register at [chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole)
    — one-time developer fee (currently $5), covers everything you ever publish.
-2. **Add new item** → upload `dist/fate-gold-navy.zip`.
+2. **Add new item** → upload `dist/fate-chrome-theme.zip`.
 3. Fill the listing — see below.
-4. Privacy tab: declare no data collection — the theme has no permissions, no code and no network
+4. Privacy tab: declare no data collection. The theme has no permissions, no code and no network
    access, which is the easiest possible review.
 5. **Submit for review.** Days is typical, weeks is the documented worst case.
 
-Publish each variant as its own item; Chrome has no concept of variants within one listing.
+### GitHub — one-click *download*, not one-click install
 
-### Listing assets
+Tag a version and `.github/workflows/release.yml` builds the theme and attaches the zip to a
+GitHub Release:
 
-`node build.mjs` writes everything the listing form needs, except the screenshot, to
-`dist/store/<theme>/`:
+```bash
+git tag v1.1.0 && git push origin v1.1.0
+```
+
+The download is then one click. **Installing still takes three steps** — unzip, `chrome://extensions`
+with Developer mode on, Load unpacked — because of the signing rule above.
+
+The workflow passes the tag into `--version` so the manifest version always matches the tag. The
+Web Store rejects a re-upload whose version it has already seen.
+
+---
+
+## Listing assets
+
+`node build.mjs` writes everything the listing form needs, except the screenshot, to `dist/store/`:
 
 | Form field | File | Notes |
 | --- | --- | --- |
 | Store icon 128×128 | `store-icon-128x128.png` | Same art as the packaged icon |
-| Small promo tile 440×280 | `promo-small-440x280.png` | Optional but shown in search results |
-| Marquee promo tile 1400×560 | `promo-marquee-1400x560.png` | Optional, used on featured shelves |
+| Small promo tile 440×280 | `promo-small-440x280.jpg` | Optional, shown in search results |
+| Marquee promo tile 1400×560 | `promo-marquee-1400x560.jpg` | Optional, featured shelves |
 | Screenshot 1280×800 | **you capture this** | See below |
 | Category | *Space* | The celestial motifs make it the closest fit; *Dark* also works |
+| Description | `store/description.txt` | Version-controlled rather than living only in the dashboard |
 
-Every generated PNG is 24-bit truecolour with no alpha, which is exactly what the form demands.
+Both tiles are cropped from the wallpaper with a **vertical bias toward the upper band** — the art's
+centre is deliberately calm, so a centred crop is mostly empty navy.
+
+The tiles are JPEG and the store icon is 24-bit PNG with no alpha. The form accepts either.
 
 ### Screenshots
 
-The store takes **1280×800 or 640×400, JPEG or 24-bit PNG with no alpha**, and rejects anything else.
-Capture a real window — a rendered mock is not a screenshot — then condition it:
+The store takes **1280×800 or 640×400, JPEG or 24-bit PNG with no alpha**, and rejects anything
+else. Capture a real window — a rendered mock is not a screenshot — then condition it:
 
 ```bash
-node shot.mjs capture.png --theme=gilded-fate
+node shot.mjs capture.png
 ```
 
-It scales to cover, centre-crops to the exact size, flattens any alpha onto that theme's own base
-navy rather than onto white, and writes 24-bit PNG to `dist/store/screenshots/`. Add
-`--size=640x400` for the smaller option.
-
-The cleanest captures come from sizing the Chrome window to 1280×800 first, so nothing is cropped.
-
-### Description
-
-Kept in [`store/description-*.txt`](store) so the listing copy is version-controlled alongside the
-theme rather than living only in the dashboard.
-
-### GitHub — one-click *download*, not one-click install
-
-Tag a version and `.github/workflows/release.yml` builds both themes and attaches the zips to a
-GitHub Release:
-
-```bash
-git tag v1.0.0 && git push origin v1.0.0
-```
-
-The download is then one click. **Installing still takes three steps** — unzip, `chrome://extensions`
-with Developer mode on, Load unpacked — because of the signing rule above. Worth doing anyway as the
-source of record and for anyone who would rather not wait on review.
-
-The workflow passes the tag into `--version` so the manifest version always matches the tag. The
-Web Store rejects a re-upload whose version it has already seen.
+It scales to cover, centre-crops to the exact size, flattens any alpha onto the theme's base navy
+rather than onto white, and writes 24-bit PNG to `dist/store/screenshots/`. Add `--size=640x400` for
+the smaller option. Sizing the Chrome window to 1280×800 before capturing avoids any crop at all.
 
 ---
 
@@ -214,15 +202,10 @@ These are Chrome's, not the theme's:
 
 - Themes can only colour the browser frame, tab strip, toolbar, omnibox and new tab page. Chrome's
   menus, settings pages and dialogs follow the OS light/dark setting and cannot be themed.
-- `theme_ntp_background` is placed at its natural size, never scaled. At 2560×1440 it covers
-  essentially every desktop; on anything wider or taller the edges fade into `ntp_background`
-  exactly, so the seam is invisible rather than a visible rectangle.
+- `theme_ntp_background` is placed at its natural size, never scaled or repeated — which is why the
+  build resamples the source down to 1920×1080 rather than shipping it at 4000px. On larger screens
+  the surrounding fill is the same colour as the art's own edges, so there is no visible seam.
 - Chrome has no theme hook for the bookmark bar background separately from the toolbar.
-- **The icon is a stand-in.** A Web Store listing requires a 128px icon, so `build.mjs` generates one
-  (16/32/48/128) from the two motifs the company wordmark already carries — the crescent moon and a
-  four-point sparkle, on the depth wash. It is consistent with the system, but it is not a real mark:
-  the brand repo has no vector master for the wordmark or the Fatenames medallion
-  (`brand/README.md` → *Missing / to do*). Replace it when one exists.
 
 ---
 
