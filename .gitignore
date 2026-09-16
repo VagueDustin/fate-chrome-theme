@@ -1,0 +1,5 @@
+# Build output. Regenerate with `node build.mjs && node pack.mjs`;
+# released zips live on the Releases page, not in the tree.
+dist/
+
+node_modules/

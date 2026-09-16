@@ -1,0 +1,39 @@
+name: release
+
+# Tag a version and the themes build themselves:
+#   git tag v1.0.0 && git push origin v1.0.0
+# The zips land on the Releases page, which is the download link you hand out.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The manifest version has to match the tag, or the Web Store rejects a
+      # re-upload as "version already exists".
+      - name: Build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node build.mjs --version="$VERSION"
+          node pack.mjs
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "FATE themes $GITHUB_REF_NAME" \
+            --generate-notes
