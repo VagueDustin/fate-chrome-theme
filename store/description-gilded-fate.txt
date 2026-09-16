@@ -1,0 +1,17 @@
+A deep navy and metallic gold theme for Chrome, drawn from the VagueDustin Enterprises design language.
+
+Every surface is covered — window frame, tab strip, toolbar, omnibox, bookmarks bar and the new tab page. Gold is reserved for the controls you actually press: back, forward, reload, menu. Everything else stays quiet, so the browser reads as still until you reach for it.
+
+The new tab page carries a layered navy depth wash, a scattered starfield, four-point sparkles, and a crescent moon struck in antique gold foil.
+
+WHICH BUILD IS THIS
+
+Gilded Fate is the ceremonial build — brighter gold, ornamental corner brackets, and a fine film grain over the whole surface. If you want something more restrained to sit behind a full working day, install FATE — Gold & Navy instead. Same palette, less ornament.
+
+WHAT IT DOESN'T DO
+
+No permissions. No background code. No network access. No analytics, no tracking, and no data collected of any kind. It is a theme and nothing else.
+
+Navy and gold, inscribed rather than printed, lit from somewhere just off the page.
+
+Provided by VagueDustin Enterprises™

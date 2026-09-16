@@ -123,29 +123,34 @@ const NTP_H = 1440;
 const STRIP_W = 64; // uniform across x, so Chrome tiles it without a seam
 const STRIP_H = 160; // taller than any Chrome frame/toolbar band
 
-function renderNtp(theme, tier, prim, wash) {
-  const t = theme.tokens;
-  const base = hexToRgb(t.surface.base);
-  const c = new Canvas(NTP_W, NTP_H, base);
-  const rand = mulberry32(0x0fa7e);
+/**
+ * The house scene — depth wash, starfield, sparkles, crescent moon, plus the
+ * tier's optional corner brackets and film grain. Shared by the new tab page
+ * and the store promo tiles so the two can never drift apart.
+ */
+function renderScene(theme, tier, prim, wash, opts) {
+  const {
+    w: W,
+    h: H,
+    mask = () => 1,
+    calm = () => 1,
+    moon,
+    starDivisor = 7600,
+    bracketInset = 0.08,
+    bracketArm = 0.055,
+    seed = 0x0fa7e,
+  } = opts;
 
-  // The image is top-aligned and flush under the toolbar, so only the left,
-  // right and bottom edges need to settle into `ntp_background` exactly.
-  // A wide, twice-eased ramp: a short one leaves a visible ring where it cuts
-  // across the depth wash on the right-hand side.
-  const padX = Math.round(NTP_W * 0.13);
-  const padY = Math.round(NTP_H * 0.16);
-  const mask = (x, y) => {
-    const t = Math.min(x / padX, (NTP_W - 1 - x) / padX, (NTP_H - 1 - y) / padY, 1);
-    return smoothstep(smoothstep(t));
-  };
+  const t = theme.tokens;
+  const c = new Canvas(W, H, hexToRgb(t.surface.base));
+  const rand = mulberry32(seed);
 
   for (const L of wash) {
     c.radial({
-      cx: unit(L.cx, 'x', NTP_W, NTP_H),
-      cy: unit(L.cy, 'y', NTP_W, NTP_H),
-      rx: unit(L.rx, 'x', NTP_W, NTP_H),
-      ry: unit(L.ry, 'y', NTP_W, NTP_H),
+      cx: unit(L.cx, 'x', W, H),
+      cy: unit(L.cy, 'y', W, H),
+      rx: unit(L.rx, 'x', W, H),
+      ry: unit(L.ry, 'y', W, H),
       rgb: L.rgb,
       alpha: L.alpha,
       stop: L.stop,
@@ -158,22 +163,16 @@ function renderNtp(theme, tier, prim, wash) {
   const accent = hexToRgb(t.accent.default);
   const inkPrimary = hexToRgb(t.text.primary);
   const ceremonial = tier.id === 'ceremonial';
-
-  // Chrome's own new-tab furniture (logo, search box, shortcut tiles) lives
-  // here; keep the starfield quiet behind it rather than cutting a hard hole.
-  const calm = (x, y) => {
-    const nx = x / NTP_W;
-    const ny = y / NTP_H;
-    return nx > 0.26 && nx < 0.74 && ny > 0.1 && ny < 0.7 ? 0.22 : 1;
-  };
+  // Stars are drawn in absolute pixels, so they must not shrink on a small tile.
+  const scale = W / NTP_W;
 
   // Starfield — cool ink dust with a gold minority, the house celestial motif.
-  const starCount = Math.round((NTP_W * NTP_H) / 7600);
+  const starCount = Math.round((W * H) / starDivisor);
   for (let i = 0; i < starCount; i++) {
-    const x = rand() * NTP_W;
-    const y = rand() * NTP_H;
+    const x = rand() * W;
+    const y = rand() * H;
     const golden = rand() < 0.28;
-    const r = 0.7 + rand() * (golden ? 1.9 : 1.3);
+    const r = (0.7 + rand() * (golden ? 1.9 : 1.3)) * Math.max(1, scale);
     const a = (0.1 + rand() * 0.42) * mask(Math.round(x), Math.round(y)) * calm(x, y);
     c.dot(x, y, r, golden ? gold300 : inkPrimary, a, 2.1);
   }
@@ -181,9 +180,9 @@ function renderNtp(theme, tier, prim, wash) {
   // Four-point sparkles — the wordmark's signature star.
   const sparkles = ceremonial ? 16 : 9;
   for (let i = 0; i < sparkles; i++) {
-    const x = rand() < 0.5 ? rand() * NTP_W * 0.26 : NTP_W * (0.74 + rand() * 0.26);
-    const y = rand() * NTP_H * 0.92;
-    const len = 6 + rand() * (ceremonial ? 16 : 10);
+    const x = rand() < 0.5 ? rand() * W * 0.26 : W * (0.74 + rand() * 0.26);
+    const y = rand() * H * 0.92;
+    const len = (6 + rand() * (ceremonial ? 16 : 10)) * Math.max(0.5, scale);
     const a = (ceremonial ? 0.3 : 0.2) * (0.5 + rand() * 0.5) * mask(Math.round(x), Math.round(y));
     c.sparkle(x, y, len, gold300, a);
   }
@@ -192,27 +191,26 @@ function renderNtp(theme, tier, prim, wash) {
   // Gold has to carry real weight here: a pale gold laid on navy at low alpha
   // lands on neutral grey, which reads as off-brand rather than restrained.
   const [foilA, foilB] = parseLinearStops(prim.gradient.goldEdge).map(hexToRgb);
-  // Clear of both the ceremonial corner bracket and the new-tab calm zone.
-  const moonX = NTP_W * 0.19;
-  const moonY = NTP_H * 0.225;
-  const moonR = NTP_W * 0.038;
-  c.dot(moonX, moonY, moonR * 2.8, gold500, ceremonial ? 0.07 : 0.045, 2.4);
-  c.crescent(moonX, moonY, moonR, -0.62, foilA, foilB, ceremonial ? 0.52 : 0.4);
+  const mx = W * moon.x;
+  const my = H * moon.y;
+  const mr = W * moon.r;
+  c.dot(mx, my, mr * 2.8, gold500, ceremonial ? 0.07 : 0.045, 2.4);
+  c.crescent(mx, my, mr, -0.62, foilA, foilB, ceremonial ? 0.52 : 0.4);
 
   // Corner brackets — ceremonial / charted tiers only (AGENTS.md §5).
   if (tier.surface.cornerAccents) {
-    const inset = Math.round(NTP_W * 0.08);
-    const arm = Math.round(NTP_W * 0.055);
+    const inset = Math.round(W * bracketInset);
+    const arm = Math.round(W * bracketArm);
+    const weight = Math.max(1, Math.round(2 * scale));
     const a = 0.26;
-    const corners = [
+    for (const [x, y, sx, sy] of [
       [inset, inset, 1, 1],
-      [NTP_W - 1 - inset, inset, -1, 1],
-      [inset, NTP_H - 1 - inset, 1, -1],
-      [NTP_W - 1 - inset, NTP_H - 1 - inset, -1, -1],
-    ];
-    for (const [x, y, sx, sy] of corners) {
-      c.line(x, y, x + arm * sx, y, accent, a * mask(x, y), 2);
-      c.line(x, y, x, y + arm * sy, accent, a * mask(x, y), 2);
+      [W - 1 - inset, inset, -1, 1],
+      [inset, H - 1 - inset, 1, -1],
+      [W - 1 - inset, H - 1 - inset, -1, -1],
+    ]) {
+      c.line(x, y, x + arm * sx, y, accent, a * mask(x, y), weight);
+      c.line(x, y, x, y + arm * sy, accent, a * mask(x, y), weight);
     }
   }
 
@@ -220,6 +218,52 @@ function renderNtp(theme, tier, prim, wash) {
   if (tier.surface.texture) c.grain(rand, 2.2, 2);
 
   return c;
+}
+
+function renderNtp(theme, tier, prim, wash) {
+  // The image is top-aligned and flush under the toolbar, so only the left,
+  // right and bottom edges need to settle into `ntp_background` exactly. The
+  // ramp is wide and twice-eased: a short one leaves a visible ring where it
+  // cuts across the depth wash on the right-hand side.
+  const padX = Math.round(NTP_W * 0.13);
+  const padY = Math.round(NTP_H * 0.16);
+
+  return renderScene(theme, tier, prim, wash, {
+    w: NTP_W,
+    h: NTP_H,
+    mask: (x, y) =>
+      smoothstep(smoothstep(Math.min(x / padX, (NTP_W - 1 - x) / padX, (NTP_H - 1 - y) / padY, 1))),
+    // Chrome's own new-tab furniture (logo, search box, shortcut tiles) lives
+    // here; keep the starfield quiet behind it rather than cutting a hard hole.
+    calm: (x, y) => {
+      const nx = x / NTP_W;
+      const ny = y / NTP_H;
+      return nx > 0.26 && nx < 0.74 && ny > 0.1 && ny < 0.7 ? 0.22 : 1;
+    },
+    // Clear of both the ceremonial corner bracket and the new-tab calm zone.
+    moon: { x: 0.19, y: 0.225, r: 0.038 },
+  });
+}
+
+/**
+ * Chrome Web Store promo tiles. Listing assets, NOT part of the uploaded
+ * package — they go to dist/store/ so `pack.mjs` never sweeps them into a zip.
+ * Nothing is masked or kept calm here: the whole canvas is visible artwork.
+ */
+const PROMO_TILES = {
+  'promo-small-440x280': [440, 280],
+  'promo-marquee-1400x560': [1400, 560],
+};
+
+function renderPromo(theme, tier, prim, wash, w, h) {
+  return renderScene(theme, tier, prim, wash, {
+    w,
+    h,
+    moon: { x: 0.22, y: 0.46, r: 0.09 },
+    starDivisor: 2600,
+    bracketInset: 0.045,
+    bracketArm: 0.05,
+  });
 }
 
 function renderStrips(theme, prim) {
@@ -409,6 +453,19 @@ for (const id of requested) {
     icons[size] = `icons/icon-${size}.png`;
     bytes += png.length;
   }
+
+  // Store listing assets are NOT part of the uploaded package — they live in
+  // dist/store/ so pack.mjs cannot sweep them into the zip.
+  const storeDir = join(distRoot, 'store', id);
+  mkdirSync(storeDir, { recursive: true });
+  for (const [pname, [pw, ph]] of Object.entries(PROMO_TILES)) {
+    const canvas = renderPromo(theme, tier, prim, wash, pw, ph);
+    writeFileSync(join(storeDir, `${pname}.png`), encodePng(pw, ph, canvas.toBytes()));
+  }
+  writeFileSync(
+    join(storeDir, 'store-icon-128x128.png'),
+    readFileSync(join(iconDir, 'icon-128.png')),
+  );
 
   const manifest = {
     manifest_version: 3,

@@ -148,13 +148,47 @@ So if you want someone to click once and have the theme applied, it has to be li
 1. Register at [chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole)
    — one-time developer fee (currently $5), covers everything you ever publish.
 2. **Add new item** → upload `dist/fate-gold-navy.zip`.
-3. Fill the listing: 128×128 icon (`icons/icon-128.png` in the build), at least one 1280×800 or
-   640×400 screenshot, category **Themes**, and a description.
+3. Fill the listing — see below.
 4. Privacy tab: declare no data collection — the theme has no permissions, no code and no network
    access, which is the easiest possible review.
 5. **Submit for review.** Days is typical, weeks is the documented worst case.
 
 Publish each variant as its own item; Chrome has no concept of variants within one listing.
+
+### Listing assets
+
+`node build.mjs` writes everything the listing form needs, except the screenshot, to
+`dist/store/<theme>/`:
+
+| Form field | File | Notes |
+| --- | --- | --- |
+| Store icon 128×128 | `store-icon-128x128.png` | Same art as the packaged icon |
+| Small promo tile 440×280 | `promo-small-440x280.png` | Optional but shown in search results |
+| Marquee promo tile 1400×560 | `promo-marquee-1400x560.png` | Optional, used on featured shelves |
+| Screenshot 1280×800 | **you capture this** | See below |
+| Category | *Space* | The celestial motifs make it the closest fit; *Dark* also works |
+
+Every generated PNG is 24-bit truecolour with no alpha, which is exactly what the form demands.
+
+### Screenshots
+
+The store takes **1280×800 or 640×400, JPEG or 24-bit PNG with no alpha**, and rejects anything else.
+Capture a real window — a rendered mock is not a screenshot — then condition it:
+
+```bash
+node shot.mjs capture.png --theme=gilded-fate
+```
+
+It scales to cover, centre-crops to the exact size, flattens any alpha onto that theme's own base
+navy rather than onto white, and writes 24-bit PNG to `dist/store/screenshots/`. Add
+`--size=640x400` for the smaller option.
+
+The cleanest captures come from sizing the Chrome window to 1280×800 first, so nothing is cropped.
+
+### Description
+
+Kept in [`store/description-*.txt`](store) so the listing copy is version-controlled alongside the
+theme rather than living only in the dashboard.
 
 ### GitHub — one-click *download*, not one-click install
 
