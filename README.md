@@ -7,26 +7,23 @@ every surface of the browser.
 
 ## Install
 
-[![Download the theme](https://img.shields.io/badge/Download%20the%20theme-%E2%86%92-D4AF37?style=for-the-badge&labelColor=070B1A&color=D4AF37&logo=googlechrome&logoColor=D4AF37)](https://github.com/VagueDustin/fate-chrome-theme/releases/latest/download/fate-chrome-theme.zip)
+[![Add to Chrome](https://img.shields.io/badge/Add%20to%20Chrome-D4AF37?style=for-the-badge&labelColor=070B1A&color=D4AF37&logo=googlechrome&logoColor=D4AF37)](https://chromewebstore.google.com/detail/fate/lghbfnmjlmfdledicaefdejmfmmehdpd)
 
-Then three steps:
-
-1. Unzip `fate-chrome-theme.zip`
-2. Open `chrome://extensions` and turn on **Developer mode**
-3. Click **Load unpacked** and select the unzipped folder
+One click, from the Chrome Web Store. Works in Chrome, Brave, Edge, and anything else built on
+Chromium.
 
 Chrome holds one theme at a time. To remove it, go to **Settings → Appearance → Reset to default**.
 
-True one-click install is coming with the Chrome Web Store listing, which is in review — Chrome
-refuses to install a packaged theme from anywhere else, so those three steps are unavoidable until
-it lands.
+<sub>Prefer to install it by hand? [Download the zip](https://github.com/VagueDustin/fate-chrome-theme/releases/latest/download/fate-chrome-theme.zip),
+unzip it, open <code>chrome://extensions</code>, turn on Developer mode, and choose Load
+unpacked.</sub>
 
 ## What it changes
 
 - Window frame, tab strip and toolbar in deep navy
 - Omnibox and bookmarks bar to match
 - Toolbar controls — back, forward, reload, menu — in metallic gold
-- The tab you are on lifted out of the frame, with a gold label and a gilded top edge
+- The tab you are on lifted out of the frame, with a gold label
 - A painted night sky on the new tab page
 
 <img src="docs/screenshot-newtab.jpg" alt="The new tab page: a navy night sky with constellations, nebula and a gilded crescent" width="100%">

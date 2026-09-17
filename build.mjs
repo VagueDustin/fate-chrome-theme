@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { encodePng, decodePng } from './lib/png.mjs';
 import { decodeJpeg } from './lib/jpeg.mjs';
 import { encodeJpeg } from './lib/jpeg-encode.mjs';
-import { Canvas, verticalStrip, downsample, hexToRgb, mix, clamp } from './lib/paint.mjs';
+import { Canvas, downsample, hexToRgb, mix, clamp } from './lib/paint.mjs';
 import { coverResize } from './lib/resample.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -62,8 +62,8 @@ const PROMO_TILES = {
   'promo-marquee-1400x560': { w: 1400, h: 560, focusY: 0.4 },
 };
 
-const STRIP_W = 64; // uniform across x, so Chrome tiles it without a seam
-const STRIP_H = 160; // taller than any Chrome frame or toolbar band
+
+
 
 /** Load source art as flat RGB, dispatching on file type. */
 function loadArt(key) {
@@ -108,56 +108,14 @@ function parseRgba(str) {
 
 // --------------------------------------------------------------- artwork ----
 
-/**
- * Frame, toolbar and inactive-tab strips. These stay generated: they are pure
- * token gradients, and Chrome tiles them, so they must be uniform across x.
- */
-function renderStrips(theme, prim) {
-  const t = theme.tokens;
-  const frame = hexToRgb(t.surface.sunken);
-  const toolbar = hexToRgb(t.surface.overlay); // must match the `toolbar` colour
-  const base = hexToRgb(t.surface.base);
-  const black = [0, 0, 0];
-  const gold400 = hexToRgb(prim.gold['400']);
-
-  const frameStrip = (dim) =>
-    verticalStrip(STRIP_W, STRIP_H, [
-      [0, mix(mix(frame, black, 0.45), black, dim)],
-      [1, mix(frame, black, dim)],
-    ]);
-
-  const toolbarStrip = verticalStrip(STRIP_W, STRIP_H, [
-    [0, toolbar],
-    [0.55, mix(toolbar, base, 0.4)],
-    [1, mix(toolbar, base, 0.55)],
-  ]);
-  // A gilded top edge, 2px. Chrome paints this image across the toolbar and the
-  // selected tab that sits continuous with it, so where it lands on the tab it
-  // gives the gold edge the colour keys cannot; where it lands on the toolbar
-  // it reads as the house hairline. Either way it is the only route to a gold
-  // stroke, since no tab outline key exists.
-  for (let x = 0; x < STRIP_W; x++) {
-    toolbarStrip.blend(x, 0, gold400, 0.85);
-    toolbarStrip.blend(x, 1, gold400, 0.45);
-  }
-
-  // Inactive tabs, flat and equal to the frame so they recede into it. Kept
-  // identical to the `background_tab` colour, so it makes no difference which
-  // of the two Chrome decides to honour.
-  const tabStrip = verticalStrip(STRIP_W, STRIP_H, [
-    [0, frame],
-    [1, frame],
-  ]);
-
-  return {
-    'theme_frame.png': frameStrip(0),
-    'theme_frame_inactive.png': frameStrip(0.32),
-    'theme_frame_incognito.png': frameStrip(0.55),
-    'theme_frame_incognito_inactive.png': frameStrip(0.68),
-    'theme_toolbar.png': toolbarStrip,
-    'theme_tab_background.png': tabStrip,
-  };
-}
+// No frame, toolbar or tab-strip images.
+//
+// They used to carry a subtle vertical gradient and a gilded top edge, which
+// worked in a horizontal tab strip and broke badly anywhere else: theme images
+// TILE, and a vertical tab strip (Brave's sidebar, Chrome's own vertical tabs)
+// is hundreds of pixels tall, so a 160px image repeats down it and redraws its
+// top edge at every tile boundary — reading as gold rules ruled across the tab
+// bar. The colour keys produce the same surfaces flat, with nothing to repeat.
 
 // -------------------------------------------------------------- manifest ----
 
@@ -166,7 +124,6 @@ const toChrome = (rgb) => rgb.map((v) => Math.round(clamp(v, 0, 255)));
 function buildColors(theme) {
   const t = theme.tokens;
   const frame = hexToRgb(t.surface.sunken);
-  const toolbar = hexToRgb(t.surface.raised);
   const black = [0, 0, 0];
   const accentSubtle = parseRgba(t.accent.subtle);
 
@@ -229,7 +186,6 @@ const DESCRIPTION =
 // ------------------------------------------------------------------ main ----
 
 const { tokens, source } = loadTokens();
-const prim = tokens.primitives;
 const themeId = arg('theme', 'gilded-fate');
 const version = arg('version', '1.0.0');
 
@@ -262,14 +218,6 @@ mkdirSync(iconDir, { recursive: true });
 
 const images = {};
 let bytes = 0;
-
-// Token-derived chrome strips.
-for (const [name, canvas] of Object.entries(renderStrips(theme, prim))) {
-  const png = encodePng(canvas.w, canvas.h, canvas.toBytes());
-  writeFileSync(join(imgDir, name), png);
-  images[name.replace(/\.png$/, '')] = `images/${name}`;
-  bytes += png.length;
-}
 
 // New tab page.
 //
