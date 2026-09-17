@@ -32,9 +32,15 @@ sources are both accepted.
 ```bash
 node build.mjs --brand=<path>        # build against a brand package checkout
 node build.mjs --theme=gold-navy     # any theme in the brand package
-node build.mjs --version=1.2.0
+node build.mjs --version=1.2.0       # otherwise taken from the newest git tag
 node build.mjs --ntp=3440x1440       # retarget the new tab art at a screen size
 ```
+
+The version comes from `git describe --tags --abbrev=0`, so a local build carries the same version
+CI would release and the build prints which it used. It previously defaulted to a hardcoded `1.0.0`,
+which produced packages the Web Store rejected with *"version must be larger than the published
+package"* — the manifest version has to increase on every upload, and CI was the only thing passing
+a real one.
 
 Tokens resolve in this order: `--brand=`, then `node_modules/@vaguedustin/brand`, then the vendored
 `brand/tokens.json`. The vendored copy is a verbatim snapshot and must be refreshed by hand when the

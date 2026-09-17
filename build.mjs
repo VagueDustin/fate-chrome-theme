@@ -27,6 +27,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { encodePng, decodePng } from './lib/png.mjs';
 import { decodeJpeg } from './lib/jpeg.mjs';
 import { encodeJpeg } from './lib/jpeg-encode.mjs';
@@ -97,6 +98,32 @@ function loadTokens() {
     }
   }
   throw new Error(`No brand tokens found. Looked in:\n  ${candidates.join('\n  ')}`);
+}
+
+/**
+ * Version, from the newest git tag unless `--version` overrides it.
+ *
+ * It used to default to a hardcoded 1.0.0, which meant a local build produced
+ * a package the Web Store rejected ("version must be larger than the published
+ * package") while the CI build of the same commit was fine, because only the
+ * workflow passed --version. Deriving it here makes the two agree.
+ */
+function resolveVersion() {
+  const explicit = arg('version', null);
+  if (explicit) return { version: explicit, origin: 'from --version' };
+  try {
+    const tag = execFileSync('git', ['describe', '--tags', '--abbrev=0'], {
+      cwd: HERE,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (/^v?\d+\.\d+\.\d+$/.test(tag)) {
+      return { version: tag.replace(/^v/, ''), origin: `from git tag ${tag}` };
+    }
+  } catch {
+    // No git, no tags, or not a checkout — fall through.
+  }
+  return { version: '0.0.0', origin: 'NO GIT TAG FOUND — pass --version before uploading' };
 }
 
 /** `rgba(212,175,55,0.12)` -> { rgb: [212,175,55], a: 0.12 } */
@@ -187,7 +214,7 @@ const DESCRIPTION =
 
 const { tokens, source } = loadTokens();
 const themeId = arg('theme', 'gilded-fate');
-const version = arg('version', '1.0.0');
+const { version, origin: versionOrigin } = resolveVersion();
 
 const theme = tokens.themes[themeId];
 if (!theme) {
@@ -205,6 +232,7 @@ const tier = tokens.tiers[theme.tier];
 
 console.log(`brand tokens : ${relative(HERE, source) || source}`);
 console.log(`theme        : ${theme.name} (${themeId}), ${tier.name} tier`);
+console.log(`version      : ${version} (${versionOrigin})`);
 console.log('');
 
 const distRoot = join(HERE, 'dist');
