@@ -24,6 +24,7 @@ import {
   existsSync,
   rmSync,
   statSync,
+  readdirSync,
 } from 'node:fs';
 import { dirname, join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,11 +58,22 @@ const JPEG_QUALITY = 92;
 const ICON_SIZES = [16, 32, 48, 128];
 const PROMO_TILES = {
   // The wallpaper's interesting detail sits around its edges and its centre is
-  // deliberately calm, so the tiles crop from the upper band rather than dead
-  // centre — otherwise a tile is mostly empty navy.
-  'promo-small-440x280': { w: 440, h: 280, focusY: 0.34 },
+  // deliberately calm, so the tile crops from the upper band rather than dead
+  // centre — otherwise it is mostly empty navy.
+  //
+  // Only the marquee is generated. The 440x280 tile is hand-made and lives in
+  // assets/store/, because a real crop of the browser chrome sells the theme
+  // better than a crop of its wallpaper.
   'promo-marquee-1400x560': { w: 1400, h: 560, focusY: 0.4 },
 };
+
+// Hand-made listing assets. They live under assets/ rather than dist/ because
+// dist/ is wiped at the top of every build; the build copies them across so
+// dist/store stays the single folder you upload from.
+const AUTHORED_STORE_DIR = 'assets/store';
+// The store takes screenshots at exactly 1280x800 or 640x400 and rejects
+// anything else, so authored captures also get a conditioned copy at that size.
+const STORE_SHOT = { w: 1280, h: 800 };
 
 
 
@@ -367,7 +379,37 @@ for (const [name, spec] of Object.entries(PROMO_TILES)) {
   );
 }
 writeFileSync(join(storeDir, 'store-icon-128x128.png'), readFileSync(join(iconDir, 'icon-128.png')));
-console.log(`  dist/store  ${Object.keys(PROMO_TILES).length} promo tiles + store icon`);
+
+// Copy hand-made listing assets across, and condition any capture to the one
+// size the store accepts.
+const authoredDir = join(HERE, AUTHORED_STORE_DIR);
+let authored = 0;
+let conditioned = 0;
+if (existsSync(authoredDir)) {
+  for (const name of readdirSync(authoredDir)) {
+    const src = join(authoredDir, name);
+    if (!statSync(src).isFile()) continue;
+    const bytes = readFileSync(src);
+    writeFileSync(join(storeDir, name), bytes);
+    authored++;
+
+    if (!/^screenshot/i.test(name)) continue;
+    const img = bytes[0] === 0xff && bytes[1] === 0xd8 ? decodeJpeg(bytes) : decodePng(bytes);
+    if (img.w === STORE_SHOT.w && img.h === STORE_SHOT.h) continue;
+    const fitted = coverResize(img, STORE_SHOT.w, STORE_SHOT.h);
+    const stem = name.replace(/\.[^.]+$/, '');
+    writeFileSync(
+      join(storeDir, `${stem}-${STORE_SHOT.w}x${STORE_SHOT.h}.jpg`),
+      encodeJpeg(STORE_SHOT.w, STORE_SHOT.h, fitted.toBytes(), JPEG_QUALITY),
+    );
+    conditioned++;
+  }
+}
+
+console.log(
+  `  dist/store  ${Object.keys(PROMO_TILES).length} generated + ${authored} authored` +
+    (conditioned ? `, ${conditioned} resized to ${STORE_SHOT.w}x${STORE_SHOT.h}` : ''),
+);
 
 // README banner. Committed rather than ignored, because the repo is the theme's
 // public landing page and GitHub needs the file in-tree to render it. Output is
@@ -381,6 +423,14 @@ writeFileSync(
   join(bannerDir, 'banner.jpg'),
   encodeJpeg(1400, 500, banner.toBytes(), JPEG_QUALITY),
 );
-console.log('  docs/banner.jpg  README banner');
+// The README shows the mark at ~88px; 256 keeps it crisp on a HiDPI display.
+writeFileSync(
+  join(bannerDir, 'icon.png'),
+  (() => {
+    const shrunk = downsample(iconCanvas, 256, 256);
+    return encodePng(256, 256, shrunk.toBytes());
+  })(),
+);
+console.log('  docs/  banner.jpg + icon.png');
 
 console.log('\nLoad unpacked from chrome://extensions with Developer mode on.');

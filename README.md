@@ -1,16 +1,24 @@
-<img src="docs/banner.jpg" alt="" width="100%">
+<p align="center">
+  <img src="docs/icon.png" width="96" alt="">
+</p>
 
-# FATE
+<h1 align="center">FATE</h1>
 
-A Chrome theme in deep navy and metallic gold. Constellations, nebula, and a gilded crescent, across
-every surface of the browser.
+<p align="center">
+  A Chrome theme in deep navy and metallic gold.<br>
+  Constellations, nebula, and a gilded crescent, across every surface of the browser.
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/fate/lghbfnmjlmfdledicaefdejmfmmehdpd"><img src="https://img.shields.io/badge/Add%20to%20Chrome-D4AF37?style=for-the-badge&labelColor=070B1A&color=D4AF37&logo=googlechrome&logoColor=D4AF37" alt="Add to Chrome"></a>
+</p>
+
+<img src="docs/screenshot-newtab.jpg" alt="The new tab page: a navy night sky with constellations, nebula and a gilded crescent" width="100%">
 
 ## Install
 
-[![Add to Chrome](https://img.shields.io/badge/Add%20to%20Chrome-D4AF37?style=for-the-badge&labelColor=070B1A&color=D4AF37&logo=googlechrome&logoColor=D4AF37)](https://chromewebstore.google.com/detail/fate/lghbfnmjlmfdledicaefdejmfmmehdpd)
-
-One click, from the Chrome Web Store. Works in Chrome, Brave, Edge, and anything else built on
-Chromium.
+One click, from the [Chrome Web Store](https://chromewebstore.google.com/detail/fate/lghbfnmjlmfdledicaefdejmfmmehdpd).
+Works in Chrome, Brave, Edge, and anything else built on Chromium.
 
 Chrome holds one theme at a time. To remove it, go to **Settings → Appearance → Reset to default**.
 
@@ -25,8 +33,6 @@ unpacked.</sub>
 - Toolbar controls — back, forward, reload, menu — in metallic gold
 - The tab you are on lifted out of the frame, with a gold label
 - A painted night sky on the new tab page
-
-<img src="docs/screenshot-newtab.jpg" alt="The new tab page: a navy night sky with constellations, nebula and a gilded crescent" width="100%">
 
 <img src="docs/screenshot-browsing.jpg" alt="The browser frame, tab strip and omnibox while browsing" width="100%">
 
@@ -45,6 +51,8 @@ Navy `#070B1A` and gold `#D4AF37`, the palette shared across every VagueDustin E
 
 Gold is kept for what you can act on — the toolbar controls, links, and the tab you are on. Nothing
 decorative uses it, which is what lets it read at a glance against near-black navy.
+
+<img src="docs/tab-detail.png" alt="Close-up of the tab strip: the selected tab lifted out of the frame with a gold label" width="440">
 
 Navy and gold, inscribed rather than printed, lit from somewhere just off the page.
 

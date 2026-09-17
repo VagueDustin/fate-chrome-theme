@@ -21,8 +21,16 @@ files by a recorded step rather than drawn by the build.
 
 | File | Size | Used for |
 | --- | --- | --- |
-| `fate-chrome-theme-wallpaper.png` | 1920×1080 | New tab background, promo tiles, README banner |
+| `fate-chrome-theme-wallpaper.png` | 1920×1080 | New tab background, marquee tile, README banner |
 | `fate-chrome-theme-icon.png` | 1254×1254 | Extension and store icons, 16/32/48/128 |
+
+`assets/store/` holds **hand-made listing assets** — the 440×280 promo tile and the screenshots.
+They live there rather than in `dist/store/` because `dist/` is deleted at the top of every build;
+the build copies them across so `dist/store/` stays the single folder you upload from. Anything
+named `screenshot*` also gets a conditioned 1280×800 copy, since the store rejects every other size.
+
+`docs/banner.jpg` is generated but unused by the README — it is the right shape for GitHub's social
+preview image, under *Settings → General → Social preview*.
 
 Replacing either file and rerunning `node build.mjs` is the whole update path. PNG and baseline JPEG
 sources are both accepted.
