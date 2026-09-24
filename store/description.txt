@@ -1,8 +1,8 @@
 A deep navy and metallic gold theme for Chrome, drawn from the VagueDustin Enterprises design language.
 
-Every surface is covered — window frame, tab strip, toolbar, omnibox, bookmarks bar and the new tab page. Gold is reserved for the controls you actually press: back, forward, reload, menu. Everything else stays quiet, so the browser reads as still until you reach for it.
+Every surface is covered: window frame, tab strip, toolbar, omnibox, bookmarks bar and the new tab page. Gold is reserved for the controls you actually press: back, forward, reload, menu. Everything else stays quiet, so the browser reads as still until you reach for it.
 
-The new tab page opens onto a painted night sky — constellations drawn in gold hairlines, deep nebula, four-point stars, and a gilded crescent. The centre is left deliberately calm, so your search box and shortcuts stay legible against it.
+The new tab page opens onto a painted night sky: constellations drawn in gold hairlines, deep nebula, four-point stars, and a gilded crescent. The centre is left deliberately calm, so your search box and shortcuts stay legible against it.
 
 WHAT IT DOESN'T DO
 
