@@ -30,7 +30,7 @@ unpacked.</sub>
 
 - Window frame, tab strip and toolbar in deep navy
 - Omnibox and bookmarks bar to match
-- Toolbar controls — back, forward, reload, menu — in metallic gold
+- Toolbar controls (back, forward, reload, menu) in metallic gold
 - The tab you are on lifted out of the frame, with a gold label
 - A painted night sky on the new tab page
 
@@ -49,7 +49,7 @@ collected of any kind. It is a theme and nothing else.
 
 Navy `#070B1A` and gold `#D4AF37`, the palette shared across every VagueDustin Enterprises product.
 
-Gold is kept for what you can act on — the toolbar controls, links, and the tab you are on. Nothing
+Gold is kept for what you can act on: the toolbar controls, links, and the tab you are on. Nothing
 decorative uses it, which is what lets it read at a glance against near-black navy.
 
 <img src="docs/tab-detail.png" alt="Close-up of the tab strip: the selected tab lifted out of the frame with a gold label" width="440">
@@ -60,5 +60,13 @@ Navy and gold, inscribed rather than printed, lit from somewhere just off the pa
 
 Everything here is generated from the brand tokens and the source art by a single script with no
 dependencies. See [docs/BUILD.md](docs/BUILD.md).
+
+## Status
+
+FATE is finished. It does what it set out to do and is published on the Chrome Web Store as it is. There's no roadmap for new features, but the source stays here for anyone who wants it.
+
+## License
+
+[MIT](LICENSE). Use it, change it, fork it, ship your own version. No permission needed.
 
 Provided by VagueDustin Enterprises™
