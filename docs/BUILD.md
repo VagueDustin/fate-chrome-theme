@@ -5,7 +5,7 @@ node build.mjs && node pack.mjs
 ```
 
 No dependencies. The PNG codec, the baseline JPEG codec, the ZIP writer and the resampler are all
-hand-rolled — Node ships no image handling, and this project brings none in.
+hand-rolled. Node ships no image handling, and this project brings none in.
 
 ## Inputs
 
@@ -15,8 +15,8 @@ Two, and nothing is invented from either.
 consumes semantic roles (`surface.raised`, `accent.default`, `text.faint`), so a retune of the brand
 package flows through with one command.
 
-**Artwork** comes from the source art in the repository root. Per the house rule — derive, never
-improvise — the new tab page, icons, promo tiles and README banner are all conditioned from those
+**Artwork** comes from the source art in the repository root. Per the house rule (derive, never
+improvise), the new tab page, icons, promo tiles and README banner are all conditioned from those
 files by a recorded step rather than drawn by the build.
 
 | File | Size | Used for |
@@ -24,12 +24,12 @@ files by a recorded step rather than drawn by the build.
 | `fate-chrome-theme-wallpaper.png` | 1920×1080 | New tab background, marquee tile, README banner |
 | `fate-chrome-theme-icon.png` | 1254×1254 | Extension and store icons, 16/32/48/128 |
 
-`assets/store/` holds **hand-made listing assets** — the 440×280 promo tile and the screenshots.
+`assets/store/` holds **hand-made listing assets**: the 440×280 promo tile and the screenshots.
 They live there rather than in `dist/store/` because `dist/` is deleted at the top of every build;
 the build copies them across so `dist/store/` stays the single folder you upload from. Anything
 named `screenshot*` also gets a conditioned 1280×800 copy, since the store rejects every other size.
 
-`docs/banner.jpg` is generated but unused by the README — it is the right shape for GitHub's social
+`docs/banner.jpg` is generated but unused by the README. It is the right shape for GitHub's social
 preview image, under *Settings → General → Social preview*.
 
 Replacing either file and rerunning `node build.mjs` is the whole update path. PNG and baseline JPEG
@@ -47,7 +47,7 @@ node build.mjs --ntp=3440x1440       # retarget the new tab art at a screen size
 The version comes from `git describe --tags --abbrev=0`, so a local build carries the same version
 CI would release and the build prints which it used. It previously defaulted to a hardcoded `1.0.0`,
 which produced packages the Web Store rejected with *"version must be larger than the published
-package"* — the manifest version has to increase on every upload, and CI was the only thing passing
+package"*. The manifest version has to increase on every upload, and CI was the only thing passing
 a real one.
 
 Tokens resolve in this order: `--brand=`, then `node_modules/@vaguedustin/brand`, then the vendored
@@ -74,10 +74,10 @@ Chrome exposes a fixed set of theme keys. Each is fed a semantic role, never a r
 Three decisions worth recording:
 
 - **Gold goes on controls, not on text.** Gold means interactive or brand and nothing else, so it
-  lands on `toolbar_button_icon` and `ntp_link` — not on tab labels, and never on a status colour.
+  lands on `toolbar_button_icon` and `ntp_link`, not on tab labels, and never on a status colour.
 - **`text.faint` is `#76849F`.** The darker `#5C6B8A` fails WCAG AA on navy, a regression the brand
   repo records as already having happened once. It is fed from the token, so it cannot drift here.
-- **Toolbar doubles as the active tab fill** in Chrome, which is why it takes `surface.raised` — the
+- **Toolbar doubles as the active tab fill** in Chrome, which is why it takes `surface.raised`: the
   selected tab then reads as lifted out of the frame, matching the panel model in the system.
 
 ## Generated images
@@ -87,11 +87,11 @@ Only the chrome strips are generated; they are pure token gradients.
 | Image | Size | What it is |
 | --- | --- | --- |
 | `theme_frame*.png` | 64×160 | Vertical gradient into `surface.sunken`. Four variants: active, inactive, incognito, incognito-inactive. |
-| `theme_toolbar.png` | 64×160 | `surface.raised` settling downward, with the `inset 0 1px 0 rgba(255,233,168,0.08)` gilded hairline on its top edge — the stroke that makes a dark surface read as gilded rather than merely dark. |
+| `theme_toolbar.png` | 64×160 | `surface.raised` settling downward, with the `inset 0 1px 0 rgba(255,233,168,0.08)` gilded hairline on its top edge, the stroke that makes a dark surface read as gilded rather than merely dark. |
 | `theme_tab_background.png` | 64×160 | Inactive tabs, sitting between frame and toolbar. |
 
 They are 64px wide and uniform across x on purpose: Chrome tiles theme images, so a
-horizontally-uniform strip is seamless at any window width, including ultrawide.
+horizontally-uniform strip shows no seam at any window width, including ultrawide.
 
 ## Chrome constraints
 
@@ -115,7 +115,7 @@ around it, which is why off-store installs need Developer mode and Load unpacked
 ## Sizing the new tab background
 
 There is no `cover`, `contain` or stretch for a theme background. The entire surface area is two
-manifest properties — alignment (`center`, `left`, `right`, `top`, `bottom`, plus corner pairs) and
+manifest properties: alignment (`center`, `left`, `right`, `top`, `bottom`, plus corner pairs) and
 repeat (`repeat`, `no-repeat`, `repeat-x`, `repeat-y`). The image is placed at natural size and then
 cropped or letterboxed. "Scales to any screen" is not achievable the way it would be in CSS.
 
@@ -140,8 +140,8 @@ window.innerWidth + " × " + window.innerHeight
 
 **Alignment is `top`, not `center`, deliberately.** On a screen taller than the art, `top` keeps the
 image flush under the toolbar rather than floating it in a band of fill. On a screen shorter than
-the art, it crops from the bottom, which keeps the crescent — the signature element, sitting
-high-left — visible either way.
+the art, it crops from the bottom, which keeps the crescent (the signature element, sitting
+high-left) visible either way.
 
 ## Releasing
 

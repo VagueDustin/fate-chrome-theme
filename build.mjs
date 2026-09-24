@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * FATE — Chrome theme build.
+ * FATE: Chrome theme build.
  *
  * Two inputs, nothing invented from either:
  *
@@ -8,8 +8,8 @@
  *            it consumes semantic roles (surface.raised, accent.default,
  *            text.faint) so a retune of the brand package flows straight
  *            through to every Chrome surface.
- *   Artwork  the source art in this directory. Per the brand repo's rule —
- *            derive, never improvise — the new tab page, icons and promo tiles
+ *   Artwork  the source art in this directory. Per the brand repo's rule
+ *            (derive, never improvise), the new tab page, icons and promo tiles
  *            are all conditioned from those files by a recorded step rather
  *            than drawn here.
  *
@@ -59,7 +59,7 @@ const ICON_SIZES = [16, 32, 48, 128];
 const PROMO_TILES = {
   // The wallpaper's interesting detail sits around its edges and its centre is
   // deliberately calm, so the tile crops from the upper band rather than dead
-  // centre — otherwise it is mostly empty navy.
+  // centre; otherwise it is mostly empty navy.
   //
   // Only the marquee is generated. The 440x280 tile is hand-made and lives in
   // assets/store/, because a real crop of the browser chrome sells the theme
@@ -133,9 +133,9 @@ function resolveVersion() {
       return { version: tag.replace(/^v/, ''), origin: `from git tag ${tag}` };
     }
   } catch {
-    // No git, no tags, or not a checkout — fall through.
+    // No git, no tags, or not a checkout: fall through.
   }
-  return { version: '0.0.0', origin: 'NO GIT TAG FOUND — pass --version before uploading' };
+  return { version: '0.0.0', origin: 'NO GIT TAG FOUND, pass --version before uploading' };
 }
 
 /** `rgba(212,175,55,0.12)` -> { rgb: [212,175,55], a: 0.12 } */
@@ -153,7 +153,7 @@ function parseRgba(str) {
 // worked in a horizontal tab strip and broke badly anywhere else: theme images
 // TILE, and a vertical tab strip (Brave's sidebar, Chrome's own vertical tabs)
 // is hundreds of pixels tall, so a 160px image repeats down it and redraws its
-// top edge at every tile boundary — reading as gold rules ruled across the tab
+// top edge at every tile boundary, reading as gold rules ruled across the tab
 // bar. The colour keys produce the same surfaces flat, with nothing to repeat.
 
 // -------------------------------------------------------------- manifest ----
@@ -167,7 +167,7 @@ function buildColors(theme) {
   const accentSubtle = parseRgba(t.accent.subtle);
 
   return {
-    // Window frame — the deepest surface in the system.
+    // Window frame: the deepest surface in the system.
     frame: toChrome(frame),
     frame_inactive: toChrome(mix(frame, black, 0.32)),
     frame_incognito: toChrome(mix(frame, black, 0.55)),
@@ -180,7 +180,7 @@ function buildColors(theme) {
     // there is no tab stroke or outline key at all. The separation has to come
     // from the three keys that do exist.
     //
-    // 1. The active tab takes `surface.overlay` — two steps up from the frame,
+    // 1. The active tab takes `surface.overlay`, two steps up from the frame,
     //    not one, so the lift is legible against near-black navy.
     toolbar: toChrome(hexToRgb(t.surface.overlay)),
     // 2. Inactive tabs are pinned to the frame colour so they recede into it
@@ -190,7 +190,7 @@ function buildColors(theme) {
     background_tab_incognito: toChrome(mix(frame, black, 0.55)),
     background_tab_incognito_inactive: toChrome(mix(frame, black, 0.68)),
     // 3. The selected tab's label is gold. Gold normally means interactive or
-    //    brand and never status (AGENTS.md §2.3) — selection is a navigation
+    //    brand and never status (AGENTS.md §2.3); selection is a navigation
     //    state rather than a status, and it is the only cue Chrome leaves that
     //    can carry the accent onto the tab itself.
     tab_text: toChrome(hexToRgb(t.accent.default)),
@@ -220,7 +220,7 @@ function buildColors(theme) {
 const DESCRIPTION_LIMIT = 132;
 const DESCRIPTION =
   'Deep navy and metallic gold across every Chrome surface. Constellations, ' +
-  'nebula, a gilded crescent — the thread is in motion.';
+  'nebula, a gilded crescent. The thread is in motion.';
 
 // ------------------------------------------------------------------ main ----
 
@@ -261,8 +261,8 @@ let bytes = 0;
 
 // New tab page.
 //
-// Theme images must be PNG — Chrome's own docs say a non-PNG "will not render
-// properly" (crbug.com/1200459) — so a JPEG source is converted rather than
+// Theme images must be PNG. Chrome's own docs say a non-PNG "will not render
+// properly" (crbug.com/1200459), so a JPEG source is converted rather than
 // passed through. Otherwise the art is left exactly as authored: native size,
 // no resampling, lossless re-encode, and whichever encoding is smaller wins.
 //
@@ -283,7 +283,7 @@ if (ntpOverride) {
   wallpaper = { w: tw, h: th, rgb: fitted.toBytes() };
   const upscaling = tw > src.w || th > src.h;
   ntpNote =
-    `${src.w}x${src.h} -> ${tw}x${th}, resampled` + (upscaling ? ' (UPSCALED — softer)' : '');
+    `${src.w}x${src.h} -> ${tw}x${th}, resampled` + (upscaling ? ' (UPSCALED, softer)' : '');
 }
 
 const reencoded = encodePng(wallpaper.w, wallpaper.h, wallpaper.rgb);
@@ -298,7 +298,7 @@ writeFileSync(join(imgDir, 'theme_ntp_background.png'), ntpBytes);
 images.theme_ntp_background = 'images/theme_ntp_background.png';
 bytes += ntpBytes.length;
 
-// Icons, downsampled from the source mark. PNG here — a 128px crest needs
+// Icons, downsampled from the source mark. PNG here: a 128px crest needs
 // crisp edges, and at this size the file is tiny either way.
 const iconArt = loadArt('icon');
 const iconSrc = iconArt.image;
@@ -327,11 +327,11 @@ const manifest = {
       // `top`, not `center`, on purpose. Chrome cannot scale this image, so on
       // a screen taller than the art `top` keeps it flush under the toolbar
       // instead of floating it in a band of fill; and on a screen shorter than
-      // the art it crops from the bottom, which keeps the crescent — the
-      // signature element, sitting high-left — visible either way.
+      // the art it crops from the bottom, which keeps the crescent (the
+      // signature element, sitting high-left) visible either way.
       ntp_background_alignment: 'top',
       ntp_background_repeat: 'no-repeat',
-      ntp_logo_alternate: 1, // white Google logo — every house surface is dark
+      ntp_logo_alternate: 1, // white Google logo; every house surface is dark
     },
   },
 };
@@ -342,7 +342,7 @@ writeFileSync(
   [
     tokens.brand.credit,
     '',
-    `${theme.name} — ornament tier: ${tier.name} (${tier.id})`,
+    `${theme.name}. Ornament tier: ${tier.name} (${tier.id})`,
     `Origin: ${theme.origin}`,
     '',
     'Generated by build.mjs from the canonical brand tokens and the source art',
@@ -365,7 +365,7 @@ if (!ntpOverride && (wallpaper.w > NTP_ADVISORY.w || wallpaper.h > NTP_ADVISORY.
   );
 }
 
-// Store listing assets are NOT part of the uploaded package — they live in
+// Store listing assets are NOT part of the uploaded package; they live in
 // dist/store/ so pack.mjs cannot sweep them into the zip.
 const storeDir = join(distRoot, 'store');
 mkdirSync(storeDir, { recursive: true });

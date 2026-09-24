@@ -3,7 +3,7 @@
  * Package each built theme for upload.
  *
  * The Chrome Web Store wants manifest.json at the ROOT of the archive, not
- * inside a folder — that is the single most common upload rejection. This packs
+ * inside a folder; that is the single most common upload rejection. This packs
  * the contents of each `dist/fate-*` directory, never the directory itself.
  *
  *   node build.mjs && node pack.mjs
@@ -18,7 +18,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const distRoot = join(HERE, 'dist');
 
 if (!existsSync(distRoot)) {
-  console.error('No dist/ — run `node build.mjs` first.');
+  console.error('No dist/ folder. Run `node build.mjs` first.');
   process.exit(1);
 }
 
@@ -33,7 +33,7 @@ const builds = readdirSync(distRoot).filter(
 );
 
 if (!builds.length) {
-  console.error('No fate-* builds in dist/ — run `node build.mjs` first.');
+  console.error('No fate-* builds in dist/. Run `node build.mjs` first.');
   process.exit(1);
 }
 

@@ -3,7 +3,7 @@
  * One-off conditioning for the README screenshots.
  *
  * Captures are not derived from source art, so they are committed rather than
- * rebuilt — this script exists to record exactly what was done to them:
+ * rebuilt; this script exists to record exactly what was done to them:
  * crop a trailing strip, scale to a sane width, re-encode.
  *
  *   node tools/prepare-screenshots.mjs <capture.jpg> docs/screenshot-x.jpg [--crop-bottom=60]
