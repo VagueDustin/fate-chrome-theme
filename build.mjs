@@ -14,7 +14,7 @@
  *            than drawn here.
  *
  *   node build.mjs
- *   node build.mjs --brand=../vaguedustin-brand
+ *   node build.mjs --brand=../fate-brand
  *   node build.mjs --theme=gold-navy --version=1.2.0
  */
 import {
